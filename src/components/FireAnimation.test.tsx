@@ -1,40 +1,49 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render } from '@testing-library/react'
 import { act } from 'react'
+import confetti from 'canvas-confetti'
 import { FireAnimation } from './FireAnimation'
+
+vi.mock('canvas-confetti', () => ({
+  default: vi.fn(),
+}))
 
 describe('FireAnimation', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.mocked(confetti).mockClear()
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('renders nothing when trigger is false', () => {
+  it('does not trigger confetti when trigger is false', () => {
     const onComplete = vi.fn()
-    const { container } = render(<FireAnimation trigger={false} onComplete={onComplete} />)
+    render(<FireAnimation trigger={false} onComplete={onComplete} />)
     
-    // Should be empty or have no visible content
-    expect(container.querySelector('.fixed')).toBeNull()
+    expect(confetti).not.toHaveBeenCalled()
   })
 
-  it('renders fire overlay when trigger is true', () => {
-    const onComplete = vi.fn()
-    const { container } = render(<FireAnimation trigger={true} onComplete={onComplete} />)
-    
-    // Should have the fixed overlay
-    expect(container.querySelector('.fixed')).not.toBeNull()
-  })
-
-  it('calls onComplete after animation finishes', async () => {
+  it('triggers confetti waves when trigger is true', async () => {
     const onComplete = vi.fn()
     render(<FireAnimation trigger={true} onComplete={onComplete} />)
     
-    // Fast forward through animation (1200ms rise + 1000ms fade = 2200ms)
+    // Allow first wave to start
     await act(async () => {
-      vi.advanceTimersByTime(2300)
+      vi.advanceTimersByTime(100)
+    })
+    
+    expect(confetti).toHaveBeenCalled()
+  })
+
+  it('calls onComplete after all waves finish', async () => {
+    const onComplete = vi.fn()
+    render(<FireAnimation trigger={true} onComplete={onComplete} />)
+    
+    // Total duration: ~2500ms (3 waves)
+    await act(async () => {
+      vi.advanceTimersByTime(3000)
     })
     
     expect(onComplete).toHaveBeenCalledTimes(1)
@@ -44,39 +53,24 @@ describe('FireAnimation', () => {
     const onComplete = vi.fn()
     render(<FireAnimation trigger={true} onComplete={onComplete} />)
     
-    // Only advance 1000ms - should not complete yet
+    // Only advance 500ms - should not complete yet
     await act(async () => {
-      vi.advanceTimersByTime(1000)
+      vi.advanceTimersByTime(500)
     })
     
     expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it('shows flame particles during rising phase', () => {
+  it('fires multiple waves with increasing intensity', async () => {
     const onComplete = vi.fn()
-    const { container } = render(<FireAnimation trigger={true} onComplete={onComplete} />)
+    render(<FireAnimation trigger={true} onComplete={onComplete} />)
     
-    // Should have particle elements
-    const particles = container.querySelectorAll('.animate-flame-particle')
-    expect(particles.length).toBeGreaterThan(0)
-  })
-
-  it('transitions through phases correctly', async () => {
-    const onComplete = vi.fn()
-    const { container } = render(<FireAnimation trigger={true} onComplete={onComplete} />)
-    
-    // Initially should be in rising phase (visible)
-    expect(container.querySelector('.fixed')).not.toBeNull()
-    
-    // After 1200ms, should start fading
+    // Let it run through all waves
     await act(async () => {
-      vi.advanceTimersByTime(1200)
+      vi.advanceTimersByTime(3000)
     })
     
-    // After 2200ms total, should complete and disappear
-    await act(async () => {
-      vi.advanceTimersByTime(1000)
-    })
-    expect(onComplete).toHaveBeenCalled()
+    // Should have been called many times across all waves
+    expect(vi.mocked(confetti).mock.calls.length).toBeGreaterThan(10)
   })
 })

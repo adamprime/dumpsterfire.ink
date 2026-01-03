@@ -1,99 +1,121 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef } from 'react'
+import confetti from 'canvas-confetti'
 
 interface FireAnimationProps {
   trigger: boolean
   onComplete: () => void
 }
 
+interface WaveConfig {
+  duration: number
+  particleCount: number
+  spread: number
+  startVelocity: number
+  scalar: number
+  colors: string[]
+}
+
+const WAVE_CONFIGS: WaveConfig[] = [
+  // Wave 1: Normal intensity (like sparks)
+  {
+    duration: 800,
+    particleCount: 4,
+    spread: 70,
+    startVelocity: 45,
+    scalar: 0.7,
+    colors: ['#ff6b35', '#f7931e', '#ffcc02', '#ff4444'],
+  },
+  // Wave 2: More intense, warmer colors
+  {
+    duration: 700,
+    particleCount: 8,
+    spread: 90,
+    startVelocity: 55,
+    scalar: 0.9,
+    colors: ['#ff4444', '#ff6b35', '#ff8c00', '#ffcc02'],
+  },
+  // Wave 3: Maximum intensity, brightest
+  {
+    duration: 1000,
+    particleCount: 12,
+    spread: 120,
+    startVelocity: 65,
+    scalar: 1.1,
+    colors: ['#ff2200', '#ff4444', '#ff6b35', '#ffaa00', '#ffcc02'],
+  },
+]
+
 export function FireAnimation({ trigger, onComplete }: FireAnimationProps) {
-  const [phase, setPhase] = useState<'idle' | 'rising' | 'fading'>('idle')
+  const animationRef = useRef<number | null>(null)
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     if (!trigger) return
 
-    setPhase('rising')
-    
-    const riseTimer = setTimeout(() => {
-      setPhase('fading')
-    }, 1200) // Extended from 800
+    let waveIndex = 0
+    let waveStart = Date.now()
 
-    const completeTimer = setTimeout(() => {
-      setPhase('idle')
-      onComplete()
-    }, 2200) // Extended from 1400
+    const fireWave = (config: WaveConfig) => {
+      // Fire from multiple origins for more dramatic effect
+      const origins = [
+        { x: 0.2, y: 1.1 },
+        { x: 0.5, y: 1.1 },
+        { x: 0.8, y: 1.1 },
+      ]
+
+      origins.forEach((origin) => {
+        confetti({
+          particleCount: config.particleCount,
+          angle: 90,
+          spread: config.spread,
+          startVelocity: config.startVelocity,
+          origin,
+          colors: config.colors,
+          shapes: ['circle'],
+          scalar: config.scalar,
+          gravity: 0.6,
+          drift: (Math.random() - 0.5) * 0.8,
+          ticks: 200,
+        })
+      })
+    }
+
+    const frame = () => {
+      const config = WAVE_CONFIGS[waveIndex]!
+      const elapsed = Date.now() - waveStart
+
+      fireWave(config)
+
+      // Check if current wave is done
+      if (elapsed >= config.duration) {
+        waveIndex++
+        waveStart = Date.now()
+
+        // Check if all waves are done
+        if (waveIndex >= WAVE_CONFIGS.length) {
+          // Small delay before completing to let particles settle
+          timeoutRef.current = setTimeout(() => {
+            onComplete()
+          }, 300)
+          return
+        }
+      }
+
+      animationRef.current = requestAnimationFrame(frame)
+    }
+
+    // Start the animation
+    animationRef.current = requestAnimationFrame(frame)
 
     return () => {
-      clearTimeout(riseTimer)
-      clearTimeout(completeTimer)
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
     }
   }, [trigger, onComplete])
 
-  if (phase === 'idle') return null
-
-  return (
-    <div 
-      className="fixed inset-0 z-50 pointer-events-none overflow-hidden"
-      style={{ perspective: '1000px' }}
-    >
-      {/* Fire gradient overlay */}
-      <div
-        className="absolute inset-x-0 bottom-0 transition-all duration-700 ease-out"
-        style={{
-          height: phase === 'rising' ? '120%' : '0%',
-          opacity: phase === 'fading' ? 0 : 1,
-          background: `linear-gradient(
-            to top,
-            rgba(255, 68, 0, 0.95) 0%,
-            rgba(255, 107, 53, 0.85) 20%,
-            rgba(255, 166, 0, 0.7) 40%,
-            rgba(255, 200, 0, 0.5) 60%,
-            rgba(255, 220, 100, 0.3) 80%,
-            transparent 100%
-          )`,
-          transition: phase === 'rising' 
-            ? 'height 0.8s cubic-bezier(0.4, 0, 0.2, 1)' 
-            : 'opacity 0.6s ease-out',
-        }}
-      />
-      
-      {/* Flame particles */}
-      {phase === 'rising' && (
-        <>
-          {[...Array(20)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute rounded-full animate-flame-particle"
-              style={{
-                left: `${10 + Math.random() * 80}%`,
-                bottom: '-20px',
-                width: `${8 + Math.random() * 16}px`,
-                height: `${12 + Math.random() * 24}px`,
-                background: `radial-gradient(ellipse, 
-                  ${['#ffcc00', '#ff9500', '#ff6b35', '#ff4400'][Math.floor(Math.random() * 4)]} 0%, 
-                  transparent 70%)`,
-                animationDelay: `${Math.random() * 0.5}s`,
-                animationDuration: `${0.8 + Math.random() * 0.4}s`,
-              }}
-            />
-          ))}
-        </>
-      )}
-
-      <style>{`
-        @keyframes flame-particle {
-          0% {
-            transform: translateY(0) scale(1);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(-100vh) scale(0.3);
-            opacity: 0;
-          }
-        }
-        .animate-flame-particle {
-          animation: flame-particle linear forwards;
-        }
-      `}</style>
-    </div>
-  )
+  return null
 }
