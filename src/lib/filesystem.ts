@@ -258,3 +258,24 @@ export async function loadSession(
 
   return { content, metadata }
 }
+
+export async function saveEntryMetadata(
+  handle: FileSystemDirectoryHandle,
+  dateStr: string,
+  session: number,
+  metadata: EntryMetadata
+): Promise<void> {
+  const parts = dateStr.split('-')
+  const year = parts[0]!
+  const month = parts[1]!
+  const baseName = `${dateStr}-${session}`
+
+  const entriesDir = await handle.getDirectoryHandle('entries')
+  const yearDir = await entriesDir.getDirectoryHandle(year)
+  const monthDir = await yearDir.getDirectoryHandle(month)
+
+  const metaFile = await monthDir.getFileHandle(`${baseName}.meta.json`, { create: true })
+  const metaWritable = await metaFile.createWritable()
+  await metaWritable.write(JSON.stringify(metadata, null, 2))
+  await metaWritable.close()
+}

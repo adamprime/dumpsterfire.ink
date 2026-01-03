@@ -96,3 +96,23 @@ export function formatEntryDate(dateStr: string): string {
     year: 'numeric',
   })
 }
+
+export async function getEntryContent(
+  handle: FileSystemDirectoryHandle,
+  date: string,
+  session: number
+): Promise<string | null> {
+  try {
+    const parts = date.split('-')
+    const year = parts[0]!
+    const month = parts[1]!
+    const entriesDir = await handle.getDirectoryHandle('entries')
+    const yearDir = await entriesDir.getDirectoryHandle(year)
+    const monthDir = await yearDir.getDirectoryHandle(month)
+    
+    const mdFile = await monthDir.getFileHandle(`${date}-${session}.md`)
+    return await (await mdFile.getFile()).text()
+  } catch {
+    return null
+  }
+}
