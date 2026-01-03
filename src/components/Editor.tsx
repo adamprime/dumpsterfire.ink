@@ -52,7 +52,7 @@ export function Editor() {
   const [isDirty, setIsDirty] = useState(false)
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null)
   
-  const { wpm, formattedTime, recordActivity, reset: resetStats } = useWritingStats(wordCount)
+  const { activeTimeSeconds, wpm, formattedTime, recordActivity, reset: resetStats } = useWritingStats(wordCount)
 
   const refreshTodaySessions = useCallback(async () => {
     if (!folderHandle) return
@@ -105,6 +105,7 @@ export function Editor() {
           updatedAt: new Date().toISOString(),
           wordCount: words,
           goalReached: words >= wordGoal,
+          writingTimeSeconds: activeTimeSeconds,
         }
 
         const parts = metadata.date.split('-').map(Number)
@@ -121,7 +122,7 @@ export function Editor() {
         setSaving(false)
       }
     },
-    [folderHandle, metadata, wordGoal]
+    [folderHandle, metadata, wordGoal, activeTimeSeconds]
   )
 
   const handleContentChange = useCallback(

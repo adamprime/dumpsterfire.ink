@@ -14,6 +14,7 @@ interface MilkdownEditorProps {
   fontSize?: number
   lineHeight?: number
   fontFamily?: FontFamily
+  typewriterMode?: boolean
 }
 
 const FONT_FAMILY_MAP: Record<FontFamily, string> = {
@@ -24,7 +25,7 @@ const FONT_FAMILY_MAP: Record<FontFamily, string> = {
   handwritten: "'Caveat', cursive",
 }
 
-export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.6, fontFamily = 'theme' }: MilkdownEditorProps) {
+export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.6, fontFamily = 'theme', typewriterMode = true }: MilkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const editorInstanceRef = useRef<Editor | null>(null)
   const initialValueRef = useRef(value)
@@ -36,6 +37,31 @@ export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.
     onChangeRef.current(markdown)
   }, [])
 
+  // Typewriter scroll - keep cursor vertically centered
+  const scrollToCursor = useCallback(() => {
+    if (!typewriterMode || !editorRef.current) return
+    
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return
+    
+    const range = selection.getRangeAt(0)
+    const rect = range.getBoundingClientRect()
+    
+    if (rect.top === 0 && rect.bottom === 0) return // No valid cursor position
+    
+    const viewportHeight = window.innerHeight
+    const targetY = viewportHeight * 0.4 // 40% from top
+    const currentY = rect.top
+    const scrollDelta = currentY - targetY
+    
+    if (Math.abs(scrollDelta) > 50) { // Only scroll if cursor is far from center
+      window.scrollBy({
+        top: scrollDelta,
+        behavior: 'smooth'
+      })
+    }
+  }, [typewriterMode])
+
   useEffect(() => {
     if (!editorRef.current) return
 
@@ -46,6 +72,8 @@ export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.
         ctx.set(editorViewOptionsCtx, { editable: () => true })
         ctx.get(listenerCtx).markdownUpdated((_, markdown) => {
           stableOnChange(markdown)
+          // Scroll to cursor after content changes
+          requestAnimationFrame(scrollToCursor)
         })
       })
       .config(nord)
@@ -61,7 +89,19 @@ export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.
     return () => {
       editor.then((e) => e.destroy())
     }
-  }, [stableOnChange])
+  }, [stableOnChange, scrollToCursor])
+
+  // Also scroll on selection changes (clicking, arrow keys)
+  useEffect(() => {
+    if (!typewriterMode) return
+    
+    const handleSelectionChange = () => {
+      requestAnimationFrame(scrollToCursor)
+    }
+    
+    document.addEventListener('selectionchange', handleSelectionChange)
+    return () => document.removeEventListener('selectionchange', handleSelectionChange)
+  }, [typewriterMode, scrollToCursor])
 
   return (
     <div
