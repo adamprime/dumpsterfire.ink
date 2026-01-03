@@ -10,6 +10,7 @@ import {
 } from '../lib/filesystem'
 import type { EntryMetadata } from '../types/filesystem'
 import { MilkdownEditor } from './MilkdownEditor'
+import { Calendar } from './Calendar'
 import { useWritingStats } from '../hooks/useWritingStats'
 
 export function Editor() {
@@ -20,6 +21,7 @@ export function Editor() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [wordCount, setWordCount] = useState(0)
+  const [showCalendar, setShowCalendar] = useState(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedContentRef = useRef('')
   
@@ -165,6 +167,48 @@ export function Editor() {
     setFolderHandle(null)
   }
 
+  const handleCalendarSelect = async (_date: Date, entries: EntryMetadata[]) => {
+    setShowCalendar(false)
+    
+    if (entries.length === 0) {
+      // No entries for this day - could create one or just close
+      return
+    }
+    
+    // Save current content first
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    await saveContent(content)
+    
+    // Load the first session from the selected date
+    setLoading(true)
+    try {
+      const entry = entries[0]!
+      const parts = entry.date.split('-').map(Number)
+      const entryDate = new Date(parts[0]!, parts[1]! - 1, parts[2]!)
+      const { content: c, metadata: m } = await loadSession(folderHandle!, entryDate, entry.session)
+      setContent(c)
+      setMetadata(m)
+      setWordCount(countWords(c))
+      lastSavedContentRef.current = c
+      
+      // Update today's sessions if we're viewing today
+      const today = new Date()
+      if (entryDate.toDateString() === today.toDateString()) {
+        await refreshTodaySessions()
+      } else {
+        setTodaySessions(entries)
+      }
+      
+      resetStats()
+    } catch (err) {
+      console.error('Failed to load entry from calendar:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const progress = Math.min((wordCount / wordGoal) * 100, 100)
   const goalReached = wordCount >= wordGoal
 
@@ -254,6 +298,18 @@ export function Editor() {
           </select>
 
           <button
+            onClick={() => setShowCalendar(true)}
+            className="px-3 py-1 text-sm rounded transition-colors"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+            }}
+            title="View calendar"
+          >
+            📅
+          </button>
+
+          <button
             onClick={handleNewSession}
             className="px-3 py-1 text-sm rounded transition-colors"
             style={{
@@ -292,6 +348,13 @@ export function Editor() {
           <MilkdownEditor value={content} onChange={handleContentChange} />
         </div>
       </main>
+
+      {showCalendar && (
+        <Calendar
+          onSelectDate={handleCalendarSelect}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
     </div>
   )
 }
