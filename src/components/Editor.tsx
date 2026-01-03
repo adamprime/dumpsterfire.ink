@@ -11,6 +11,7 @@ import {
 import type { EntryMetadata } from '../types/filesystem'
 import { MilkdownEditor } from './MilkdownEditor'
 import { Calendar } from './Calendar'
+import { EntryBrowser } from './EntryBrowser'
 import { useWritingStats } from '../hooks/useWritingStats'
 
 export function Editor() {
@@ -22,6 +23,7 @@ export function Editor() {
   const [saving, setSaving] = useState(false)
   const [wordCount, setWordCount] = useState(0)
   const [showCalendar, setShowCalendar] = useState(false)
+  const [showBrowser, setShowBrowser] = useState(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedContentRef = useRef('')
   
@@ -209,6 +211,31 @@ export function Editor() {
     }
   }
 
+  const handleBrowserSelect = async (entry: EntryMetadata) => {
+    setShowBrowser(false)
+    
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    await saveContent(content)
+    
+    setLoading(true)
+    try {
+      const parts = entry.date.split('-').map(Number)
+      const entryDate = new Date(parts[0]!, parts[1]! - 1, parts[2]!)
+      const { content: c, metadata: m } = await loadSession(folderHandle!, entryDate, entry.session)
+      setContent(c)
+      setMetadata(m)
+      setWordCount(countWords(c))
+      lastSavedContentRef.current = c
+      resetStats()
+    } catch (err) {
+      console.error('Failed to load entry from browser:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const progress = Math.min((wordCount / wordGoal) * 100, 100)
   const goalReached = wordCount >= wordGoal
 
@@ -310,6 +337,18 @@ export function Editor() {
           </button>
 
           <button
+            onClick={() => setShowBrowser(true)}
+            className="px-3 py-1 text-sm rounded transition-colors"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+            }}
+            title="Browse all entries"
+          >
+            📋
+          </button>
+
+          <button
             onClick={handleNewSession}
             className="px-3 py-1 text-sm rounded transition-colors"
             style={{
@@ -353,6 +392,13 @@ export function Editor() {
         <Calendar
           onSelectDate={handleCalendarSelect}
           onClose={() => setShowCalendar(false)}
+        />
+      )}
+
+      {showBrowser && (
+        <EntryBrowser
+          onSelectEntry={handleBrowserSelect}
+          onClose={() => setShowBrowser(false)}
         />
       )}
     </div>
