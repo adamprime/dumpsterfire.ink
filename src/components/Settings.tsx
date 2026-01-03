@@ -67,15 +67,15 @@ export function Settings({ onClose }: SettingsProps) {
       onClick={onClose}
     >
       <div
-        className="rounded-lg max-w-md w-full mx-4"
+        className="rounded-lg max-w-md w-full mx-4 max-h-[85vh] flex flex-col"
         style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="p-4 border-b flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="text-lg font-semibold">Settings</h2>
         </div>
 
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-6 overflow-y-auto flex-1">
           {/* Word Goal */}
           <div>
             <label className="block text-sm font-medium mb-2">Daily Word Goal</label>
@@ -308,7 +308,7 @@ export function Settings({ onClose }: SettingsProps) {
           </div>
         </div>
 
-        <div className="p-4 border-t flex gap-2" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="p-4 border-t flex gap-2 flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
           <button
             onClick={onClose}
             className="flex-1 py-2 rounded text-sm"
