@@ -47,6 +47,7 @@ export function Editor() {
   const [showWhatRemains, setShowWhatRemains] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [hasShownSparksForGoal, setHasShownSparksForGoal] = useState(false)
+  const [contentAtLastAnalysis, setContentAtLastAnalysis] = useState('')
   
   // Save state tracking
   const [isDirty, setIsDirty] = useState(false)
@@ -196,6 +197,26 @@ export function Editor() {
     setShowFireAnimation(true)
   }, [])
 
+  const runAnalysis = useCallback(async () => {
+    if (!settings?.ai.provider || content.length < 50 || !folderHandle || !metadata) return
+    
+    setIsAnalyzing(true)
+    setContentAtLastAnalysis(content)
+    try {
+      const apiKey = await getApiKey(settings.ai.provider)
+      if (apiKey) {
+        const analysis = await analyzeEntry(content, settings.ai.provider, apiKey)
+        const updatedMetadata: EntryMetadata = { ...metadata, analysis }
+        await saveEntryMetadata(folderHandle, metadata.date, metadata.session, updatedMetadata)
+        setMetadata(updatedMetadata)
+      }
+    } catch (err) {
+      console.error('Analysis failed:', err)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }, [settings, content, getApiKey, folderHandle, metadata])
+
   const handleFireComplete = useCallback(async () => {
     setShowFireAnimation(false)
     setShowWhatRemains(true)
@@ -203,24 +224,18 @@ export function Editor() {
     // Scroll to top so What Remains panel is visible
     window.scrollTo({ top: 0, behavior: 'smooth' })
     
-    // Start analysis if not already done and API is configured
-    if (!metadata?.analysis && settings?.ai.provider && content.length >= 50) {
-      setIsAnalyzing(true)
-      try {
-        const apiKey = await getApiKey(settings.ai.provider)
-        if (apiKey && folderHandle && metadata) {
-          const analysis = await analyzeEntry(content, settings.ai.provider, apiKey)
-          const updatedMetadata: EntryMetadata = { ...metadata, analysis }
-          await saveEntryMetadata(folderHandle, metadata.date, metadata.session, updatedMetadata)
-          setMetadata(updatedMetadata)
-        }
-      } catch (err) {
-        console.error('Analysis failed:', err)
-      } finally {
-        setIsAnalyzing(false)
-      }
+    // Start analysis if not already done
+    if (!metadata?.analysis) {
+      await runAnalysis()
+    } else {
+      // Track content at last analysis for rekindle detection
+      setContentAtLastAnalysis(content)
     }
-  }, [metadata, settings, content, getApiKey, folderHandle])
+  }, [metadata, content, runAnalysis])
+
+  const handleRekindle = useCallback(async () => {
+    await runAnalysis()
+  }, [runAnalysis])
 
   const handleNewSession = async () => {
     if (!folderHandle) return
@@ -565,6 +580,8 @@ export function Editor() {
               isAnalyzing={isAnalyzing}
               onClose={() => setShowWhatRemains(false)}
               wordGoal={wordGoal}
+              hasChanges={content !== contentAtLastAnalysis && contentAtLastAnalysis !== ''}
+              onRekindle={handleRekindle}
             />
           </div>
         )}

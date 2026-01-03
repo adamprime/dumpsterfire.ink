@@ -6,9 +6,11 @@ interface WhatRemainsProps {
   isAnalyzing: boolean
   onClose: () => void
   wordGoal: number
+  hasChanges?: boolean
+  onRekindle?: () => void
 }
 
-export function WhatRemains({ metadata, isAnalyzing, onClose, wordGoal }: WhatRemainsProps) {
+export function WhatRemains({ metadata, isAnalyzing, onClose, wordGoal, hasChanges, onRekindle }: WhatRemainsProps) {
   const analysis = metadata.analysis
   
   const formatTime = (seconds: number): string => {
@@ -206,15 +208,30 @@ export function WhatRemains({ metadata, isAnalyzing, onClose, wordGoal }: WhatRe
                 )}
 
                 {/* Analyzed info */}
-                <p 
-                  className="text-xs pt-4 border-t"
-                  style={{ 
-                    color: 'var(--color-text-muted)',
-                    borderColor: 'var(--color-border)',
-                  }}
+                <div 
+                  className="pt-4 border-t flex items-center justify-between"
+                  style={{ borderColor: 'var(--color-border)' }}
                 >
-                  Analyzed {new Date(analysis.analyzedAt).toLocaleString()} via {analysis.provider}
-                </p>
+                  <p 
+                    className="text-xs"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
+                    Analyzed {new Date(analysis.analyzedAt).toLocaleString()} via {analysis.provider}
+                  </p>
+                  
+                  {hasChanges && onRekindle && (
+                    <button
+                      onClick={onRekindle}
+                      className="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors hover:opacity-80"
+                      style={{
+                        backgroundColor: 'var(--color-accent)',
+                        color: 'white',
+                      }}
+                    >
+                      🔥 Rekindle
+                    </button>
+                  )}
+                </div>
               </>
             ) : (
               <div 

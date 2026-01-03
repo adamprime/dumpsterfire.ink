@@ -228,4 +228,64 @@ describe('WhatRemains', () => {
     // WPM should be 0 when no time recorded
     expect(screen.getByText('0')).toBeInTheDocument()
   })
+
+  it('shows Rekindle button when hasChanges is true and has analysis', () => {
+    render(
+      <WhatRemains
+        metadata={mockMetadataWithAnalysis}
+        isAnalyzing={false}
+        onClose={vi.fn()}
+        wordGoal={750}
+        hasChanges={true}
+        onRekindle={vi.fn()}
+      />
+    )
+    expect(screen.getByRole('button', { name: /rekindle/i })).toBeInTheDocument()
+  })
+
+  it('does not show Rekindle button when hasChanges is false', () => {
+    render(
+      <WhatRemains
+        metadata={mockMetadataWithAnalysis}
+        isAnalyzing={false}
+        onClose={vi.fn()}
+        wordGoal={750}
+        hasChanges={false}
+        onRekindle={vi.fn()}
+      />
+    )
+    expect(screen.queryByRole('button', { name: /rekindle/i })).not.toBeInTheDocument()
+  })
+
+  it('calls onRekindle when Rekindle button is clicked', () => {
+    const onRekindle = vi.fn()
+    render(
+      <WhatRemains
+        metadata={mockMetadataWithAnalysis}
+        isAnalyzing={false}
+        onClose={vi.fn()}
+        wordGoal={750}
+        hasChanges={true}
+        onRekindle={onRekindle}
+      />
+    )
+    
+    fireEvent.click(screen.getByRole('button', { name: /rekindle/i }))
+    expect(onRekindle).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides Rekindle button while analyzing', () => {
+    render(
+      <WhatRemains
+        metadata={mockMetadataWithAnalysis}
+        isAnalyzing={true}
+        onClose={vi.fn()}
+        wordGoal={750}
+        hasChanges={true}
+        onRekindle={vi.fn()}
+      />
+    )
+    // Should show loading state, not the button
+    expect(screen.queryByRole('button', { name: /rekindle/i })).not.toBeInTheDocument()
+  })
 })
