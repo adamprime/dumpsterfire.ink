@@ -84,11 +84,17 @@ body {
 /* Milkdown editor styles */
 .milkdown-wrapper .milkdown {
   outline: none;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
 }
 
 .milkdown-wrapper .milkdown .editor {
   outline: none;
   min-height: 60vh;
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
 }
 
 .milkdown-wrapper .milkdown .ProseMirror {
@@ -100,12 +106,10 @@ body {
   line-height: inherit !important;
 }
 
-.milkdown-wrapper .milkdown .ProseMirror p,
-.milkdown-wrapper .milkdown .ProseMirror h1,
-.milkdown-wrapper .milkdown .ProseMirror h2,
-.milkdown-wrapper .milkdown .ProseMirror h3,
-.milkdown-wrapper .milkdown .ProseMirror li {
+.milkdown-wrapper .milkdown .ProseMirror * {
   font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
 }
 
 .milkdown-wrapper .milkdown .ProseMirror p.is-editor-empty:first-child::before {
