@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useAppStore, type Theme } from '../stores/appStore'
+import { useSecurityStore } from '../stores/securityStore'
 import { getSettings, saveSettings } from '../lib/filesystem'
 import type { DumpsterFireSettings } from '../types/filesystem'
+import { PasswordSetup } from './PasswordSetup'
 
 interface SettingsProps {
   onClose: () => void
@@ -25,9 +27,11 @@ const FONTS: { value: DumpsterFireSettings['editor']['fontFamily']; label: strin
 
 export function Settings({ onClose }: SettingsProps) {
   const { folderHandle, wordGoal, setWordGoal, theme, setTheme } = useAppStore()
+  const { setUnlocked } = useSecurityStore()
   const [localGoal, setLocalGoal] = useState(wordGoal)
   const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
   const [saving, setSaving] = useState(false)
+  const [showPasswordSetup, setShowPasswordSetup] = useState<'app-lock' | 'encrypted' | null>(null)
 
   useEffect(() => {
     if (!folderHandle) return
@@ -238,6 +242,47 @@ export function Settings({ onClose }: SettingsProps) {
               className="w-full"
             />
           </div>
+
+          {/* Security */}
+          <div className="pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+            <label className="block text-sm font-medium mb-2">Security</label>
+            <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
+              {settings?.security.mode === 'open' && 'No password required. Files stored as plain text.'}
+              {settings?.security.mode === 'app-lock' && 'Password required to open app. Files stored as plain text.'}
+              {settings?.security.mode === 'encrypted' && 'Password required. All content encrypted on disk.'}
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {(['open', 'app-lock', 'encrypted'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={async () => {
+                    if (mode === settings?.security.mode) return
+                    
+                    if (mode !== 'open' && settings?.security.mode === 'open') {
+                      setShowPasswordSetup(mode)
+                    } else if (mode === 'open' && settings?.security.mode !== 'open') {
+                      if (confirm('Remove password protection? This will disable security features.')) {
+                        const newSettings = {
+                          ...settings!,
+                          security: { mode: 'open' as const },
+                        }
+                        setSettings(newSettings)
+                        await saveSettings(folderHandle!, newSettings)
+                      }
+                    }
+                  }}
+                  className="px-2 py-2 text-xs rounded transition-colors"
+                  style={{
+                    backgroundColor: settings?.security.mode === mode ? 'var(--color-accent)' : 'var(--color-bg)',
+                    color: settings?.security.mode === mode ? 'white' : 'var(--color-text)',
+                    border: '1px solid var(--color-border)',
+                  }}
+                >
+                  {mode === 'open' ? 'Open' : mode === 'app-lock' ? 'App Lock' : 'Encrypted'}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="p-4 border-t flex gap-2" style={{ borderColor: 'var(--color-border)' }}>
@@ -258,6 +303,19 @@ export function Settings({ onClose }: SettingsProps) {
           </button>
         </div>
       </div>
+
+      {showPasswordSetup && folderHandle && (
+        <PasswordSetup
+          folderHandle={folderHandle}
+          targetMode={showPasswordSetup}
+          onComplete={(password) => {
+            setShowPasswordSetup(null)
+            setUnlocked(password)
+            getSettings(folderHandle).then(setSettings)
+          }}
+          onCancel={() => setShowPasswordSetup(null)}
+        />
+      )}
     </div>
   )
 }
