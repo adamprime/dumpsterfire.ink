@@ -4,6 +4,7 @@ import { useSecurityStore } from '../stores/securityStore'
 import { getSettings, saveSettings } from '../lib/filesystem'
 import type { DumpsterFireSettings } from '../types/filesystem'
 import { PasswordSetup } from './PasswordSetup'
+import { ApiKeyConfig } from './ApiKeyConfig'
 
 interface SettingsProps {
   onClose: () => void
@@ -32,6 +33,7 @@ export function Settings({ onClose }: SettingsProps) {
   const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
   const [saving, setSaving] = useState(false)
   const [showPasswordSetup, setShowPasswordSetup] = useState<'app-lock' | 'encrypted' | null>(null)
+  const [showApiConfig, setShowApiConfig] = useState(false)
 
   useEffect(() => {
     if (!folderHandle) return
@@ -243,6 +245,27 @@ export function Settings({ onClose }: SettingsProps) {
             />
           </div>
 
+          {/* AI Configuration */}
+          <div className="pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+            <label className="block text-sm font-medium mb-2">AI Analysis</label>
+            <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
+              {settings?.ai.provider 
+                ? `Using ${settings.ai.provider === 'anthropic' ? 'Anthropic (Claude)' : 'OpenAI (GPT)'}`
+                : 'No AI provider configured'}
+            </p>
+            <button
+              onClick={() => setShowApiConfig(true)}
+              className="w-full py-2 text-sm rounded"
+              style={{
+                backgroundColor: 'var(--color-bg)',
+                color: 'var(--color-text)',
+                border: '1px solid var(--color-border)',
+              }}
+            >
+              Configure API Keys
+            </button>
+          </div>
+
           {/* Security */}
           <div className="pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
             <label className="block text-sm font-medium mb-2">Security</label>
@@ -314,6 +337,17 @@ export function Settings({ onClose }: SettingsProps) {
             getSettings(folderHandle).then(setSettings)
           }}
           onCancel={() => setShowPasswordSetup(null)}
+        />
+      )}
+
+      {showApiConfig && (
+        <ApiKeyConfig
+          onClose={() => {
+            setShowApiConfig(false)
+            if (folderHandle) {
+              getSettings(folderHandle).then(setSettings)
+            }
+          }}
         />
       )}
     </div>
