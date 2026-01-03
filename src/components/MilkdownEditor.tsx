@@ -32,6 +32,9 @@ export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.
   
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
+  
+  const typewriterModeRef = useRef(typewriterMode)
+  typewriterModeRef.current = typewriterMode
 
   const stableOnChange = useCallback((markdown: string) => {
     onChangeRef.current(markdown)
@@ -39,7 +42,7 @@ export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.
 
   // Typewriter scroll - keep cursor vertically centered
   const scrollToCursor = useCallback(() => {
-    if (!typewriterMode || !editorRef.current) return
+    if (!typewriterModeRef.current || !editorRef.current) return
     
     const selection = window.getSelection()
     if (!selection || selection.rangeCount === 0) return
@@ -60,7 +63,7 @@ export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.
         behavior: 'smooth'
       })
     }
-  }, [typewriterMode])
+  }, []) // No dependencies - uses refs
 
   useEffect(() => {
     if (!editorRef.current) return
@@ -89,19 +92,19 @@ export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.
     return () => {
       editor.then((e) => e.destroy())
     }
-  }, [stableOnChange, scrollToCursor])
+  }, [stableOnChange]) // Note: scrollToCursor intentionally excluded to prevent editor recreation
 
   // Also scroll on selection changes (clicking, arrow keys)
   useEffect(() => {
-    if (!typewriterMode) return
-    
     const handleSelectionChange = () => {
-      requestAnimationFrame(scrollToCursor)
+      if (typewriterModeRef.current) {
+        requestAnimationFrame(scrollToCursor)
+      }
     }
     
     document.addEventListener('selectionchange', handleSelectionChange)
     return () => document.removeEventListener('selectionchange', handleSelectionChange)
-  }, [typewriterMode, scrollToCursor])
+  }, [scrollToCursor])
 
   return (
     <div
