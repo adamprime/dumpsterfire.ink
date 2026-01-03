@@ -21,6 +21,7 @@ import { Settings } from './Settings'
 import { SparksAnimation } from './SparksAnimation'
 import { FireAnimation } from './FireAnimation'
 import { WhatRemains } from './WhatRemains'
+import { SaveIndicator } from './SaveIndicator'
 import { useWritingStats } from '../hooks/useWritingStats'
 
 export function Editor() {
@@ -46,6 +47,10 @@ export function Editor() {
   const [showWhatRemains, setShowWhatRemains] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [hasShownSparksForGoal, setHasShownSparksForGoal] = useState(false)
+  
+  // Save state tracking
+  const [isDirty, setIsDirty] = useState(false)
+  const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null)
   
   const { wpm, formattedTime, recordActivity, reset: resetStats } = useWritingStats(wordCount)
 
@@ -87,7 +92,10 @@ export function Editor() {
   const saveContent = useCallback(
     async (newContent: string) => {
       if (!folderHandle || !metadata) return
-      if (newContent === lastSavedContentRef.current) return
+      if (newContent === lastSavedContentRef.current) {
+        setIsDirty(false)
+        return
+      }
 
       setSaving(true)
       try {
@@ -105,6 +113,8 @@ export function Editor() {
         await saveEntry(folderHandle, date, metadata.session, newContent, updatedMetadata)
         setMetadata(updatedMetadata)
         lastSavedContentRef.current = newContent
+        setIsDirty(false)
+        setLastSaveTime(new Date())
       } catch (err) {
         console.error('Failed to save:', err)
       } finally {
@@ -118,6 +128,7 @@ export function Editor() {
     (newContent: string) => {
       setContent(newContent)
       setWordCount(countWords(newContent))
+      setIsDirty(newContent !== lastSavedContentRef.current)
       recordActivity()
 
       if (saveTimeoutRef.current) {
@@ -255,6 +266,13 @@ export function Editor() {
     }
   }
 
+  const handleManualSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+    }
+    saveContent(content)
+  }, [content, saveContent])
+
   const handleDisconnect = () => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -344,8 +362,11 @@ export function Editor() {
   return (
     <div className="min-h-screen flex flex-col">
       <header
-        className="flex items-center justify-between px-6 py-3"
-        style={{ borderBottom: '1px solid var(--color-border)' }}
+        className="flex items-center justify-between px-6 py-3 sticky top-0 z-30"
+        style={{ 
+          borderBottom: '1px solid var(--color-border)',
+          backgroundColor: 'var(--color-bg)',
+        }}
       >
         <div className="flex items-center gap-4">
           <h1 className="font-semibold" style={{ color: 'var(--color-accent)' }}>
@@ -394,11 +415,12 @@ export function Editor() {
             </span>
           )}
 
-          {saving && (
-            <span className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-              Saving...
-            </span>
-          )}
+          <SaveIndicator
+            isDirty={isDirty}
+            isSaving={saving}
+            lastSaveTime={lastSaveTime}
+            onSave={handleManualSave}
+          />
 
           <select
             value={theme}

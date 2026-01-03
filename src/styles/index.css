@@ -99,12 +99,13 @@ body {
 
 .milkdown-wrapper .milkdown .ProseMirror {
   outline: none;
-  min-height: 60vh;
+  min-height: 50vh;
   color: var(--color-text);
   font-family: inherit !important;
   font-size: inherit !important;
   line-height: inherit !important;
-  /* Typewriter scroll - add padding at bottom to keep cursor centered */
+  /* Typewriter scroll - padding top and bottom to keep cursor centered */
+  padding-top: 40vh;
   padding-bottom: 50vh;
 }
 
