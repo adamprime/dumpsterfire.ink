@@ -4,17 +4,18 @@
 
 ## Project Overview
 
-Dumpster Fire is a 750words.com-inspired writing app that stores all data locally using the Chrome File System Access API. No servers, no accounts - just writing.
+Dumpster Fire is a 750words.com-inspired writing app that stores all data locally using the Chrome File System Access API. No servers, no accounts - just writing. The core concept: "Spill the ink, light it up, see what remains."
 
 ## Tech Stack
 
 - **Framework**: React 18 + TypeScript
-- **Build**: Vite
+- **Build**: Vite + vite-plugin-pwa
 - **Editor**: Milkdown (ProseMirror-based, Bear-style inline markdown)
 - **Styling**: Tailwind CSS v4 (via @tailwindcss/vite plugin)
 - **State**: Zustand (with persist middleware)
 - **Storage**: File System Access API (Chromium browsers only)
 - **AI**: Anthropic Claude API, OpenAI API (user provides keys)
+- **Animations**: canvas-confetti for sparks/fire effects
 - **Testing**: Vitest (unit), Playwright (E2E)
 
 ## Project Structure
@@ -22,16 +23,17 @@ Dumpster Fire is a 750words.com-inspired writing app that stores all data locall
 ```
 src/
 ├── components/          # React components
-│   ├── Editor.tsx       # Main writing view with stats, split view
-│   ├── MilkdownEditor.tsx   # Milkdown wrapper
+│   ├── Editor.tsx       # Main writing view with stats, split view, typewriter scroll
+│   ├── MilkdownEditor.tsx   # Milkdown wrapper with typewriter mode
 │   ├── Welcome.tsx      # Folder picker / onboarding
 │   ├── Calendar.tsx     # Monthly calendar for entry navigation
 │   ├── EntryBrowser.tsx # List view of all entries with search
-│   ├── Settings.tsx     # App settings panel
-│   ├── WhatRemains.tsx  # Analysis panel (stats + AI insights)
+│   ├── Settings.tsx     # App settings panel (scrollable)
+│   ├── WhatRemains.tsx  # Analysis panel (stats + AI insights + Rekindle)
 │   ├── SparksAnimation.tsx  # Ember animation on goal reached
-│   ├── FireAnimation.tsx    # Fire transition animation
+│   ├── FireAnimation.tsx    # Rising inferno (3-wave confetti burst)
 │   ├── QuillLoader.tsx  # Loading animation for AI analysis
+│   ├── SaveIndicator.tsx    # Save state indicator (dirty/saving/saved)
 │   ├── ApiKeyConfig.tsx # API key management
 │   ├── PasswordSetup.tsx    # Security password setup
 │   └── UnlockScreen.tsx # Password unlock screen
@@ -40,14 +42,14 @@ src/
 ├── lib/                 # Utilities and services
 │   ├── filesystem.ts    # File System API operations
 │   ├── crypto.ts        # Web Crypto API (encryption)
-│   ├── analysis.ts      # AI analysis (Anthropic/OpenAI)
+│   ├── analysis.ts      # AI analysis (Anthropic/OpenAI) - warm, supportive tone
 │   ├── calendar.ts      # Calendar utilities
 │   └── entries.ts       # Entry browsing utilities
 ├── stores/              # Zustand stores
 │   ├── appStore.ts      # Global app state (persisted)
 │   └── securityStore.ts # Session security state
 ├── styles/              # CSS files
-│   └── index.css        # Tailwind + CSS variables + themes
+│   └── index.css        # Tailwind + CSS variables + 5 themes
 ├── types/               # TypeScript types
 │   └── filesystem.ts    # Data schemas
 └── test/                # Test setup
@@ -58,11 +60,12 @@ src/
 
 ```bash
 npm run dev      # Start dev server (http://localhost:5173)
-npm run build    # Production build
+npm run build    # Production build (includes PWA service worker)
 npm run preview  # Preview production build
 npm run lint     # Run ESLint
 npm run test     # Run Vitest unit tests
 npm run test:e2e # Run Playwright E2E tests
+npm run typecheck # TypeScript check
 ```
 
 ## Development Workflow
@@ -91,9 +94,8 @@ All data stored in user-selected folder:
 ├── entries/
 │   └── YYYY/MM/
 │       ├── YYYY-MM-DD-1.md        # Entry content
-│       └── YYYY-MM-DD-1.meta.json # Entry metadata
+│       └── YYYY-MM-DD-1.meta.json # Entry metadata + analysis
 ├── settings.json                   # App settings
-└── analysis-queue.json             # Pending AI analyses
 ```
 
 ## Security Tiers
@@ -115,32 +117,44 @@ All encryption uses Web Crypto API (AES-256-GCM, PBKDF2 key derivation).
 
 ### Autosave
 - Debounced: 2 seconds after last keystroke
-- Immediate: on window blur or beforeunload
+- Immediate: on window blur
 - Skip if content unchanged
+- Saves `writingTimeSeconds` to metadata for stats
 
 ### Editor
 - Milkdown with commonmark + gfm presets
 - Nord theme as base (customized per app theme)
-- Content changes fire markdown listener
+- Typewriter scrolling keeps cursor at 40% from top
+- Uses refs for callbacks to prevent editor recreation
 
 ### Themes
 CSS variables in `:root` and `[data-theme="..."]`:
 - `--color-bg`, `--color-surface`, `--color-text`
 - `--color-text-muted`, `--color-accent`, `--color-border`
+- `--font-editor` for theme-specific fonts
 
 Available themes: dark, light, sepia, matrix, parchment
 
 ### "What Remains" Flow (Goal Completion)
 The core UX when a user hits their word goal:
 
-1. **Goal reached** → `SparksAnimation` triggers (embers rise from bottom)
-2. **Button appears** → "Strike the match" below progress bar
-3. **User clicks** → `FireAnimation` plays (flames engulf screen)
+1. **Goal reached** → `SparksAnimation` triggers (embers rise, 5 seconds)
+2. **Button appears** → "Strike the match" fixed at bottom center with glow
+3. **User clicks** → `FireAnimation` plays (3-wave rising inferno, ~2.5s)
 4. **Split view opens** → Entry masked on left, `WhatRemains` panel on right
 5. **AI analysis** → `QuillLoader` shows while fetching, then displays results
-6. **Click masked entry** → Returns to full-width editor
+6. **Rekindle** → If content changed since analysis, button appears to re-run
+7. **Click masked entry** → Returns to full-width editor
 
-This flow is managed in `Editor.tsx` with state: `showSparks`, `showFireAnimation`, `showWhatRemains`, `isAnalyzing`.
+### AI Analysis Tone
+The AI prompt is designed to be warm, supportive, and encouraging - like a good friend reflecting on your writing. It celebrates the act of writing itself, uses second person ("you/your"), and avoids clinical or judgmental language.
+
+### PWA Support
+- Service worker via vite-plugin-pwa (Workbox)
+- Caches all assets for offline use
+- Google Fonts cached for 1 year
+- Auto-update registration
+- Installable on desktop and mobile
 
 ## Testing
 
@@ -152,18 +166,13 @@ This flow is managed in `Editor.tsx` with state: `showSparks`, `showFireAnimatio
 
 ### Running Tests
 ```bash
-npm run test         # Run all unit tests in watch mode
+npm run test             # Run all unit tests in watch mode
 npm run test -- --run    # Run once (CI mode)
-npm run test:e2e     # Run Playwright E2E tests
-npm run typecheck    # TypeScript check (run before committing)
+npm run test:e2e         # Run Playwright E2E tests
+npm run typecheck        # TypeScript check (run before committing)
 ```
 
-### Test File Conventions
-- Unit tests: `*.test.ts` or `*.test.tsx` (colocated with source)
-- E2E tests: `e2e/*.spec.ts`
-- Mock external dependencies (canvas-confetti, APIs)
-
-### Current Test Coverage (82 tests)
+### Current Test Coverage (91 tests)
 
 | Area | File | Tests | What's Tested |
 |------|------|-------|---------------|
@@ -174,9 +183,10 @@ npm run typecheck    # TypeScript check (run before committing)
 | **Writing Stats** | `useWritingStats.test.ts` | 6 | Timer, WPM calculation |
 | **Themes** | `themes.test.ts` | 2 | Theme definitions |
 | **Sparks** | `SparksAnimation.test.tsx` | 5 | Confetti trigger, colors |
-| **Fire** | `FireAnimation.test.tsx` | 6 | Animation phases, timing |
+| **Fire** | `FireAnimation.test.tsx` | 5 | 3-wave confetti, timing |
 | **Quill Loader** | `QuillLoader.test.tsx` | 5 | Render, animations |
-| **What Remains** | `WhatRemains.test.tsx` | 15 | Stats, analysis display, interactions |
+| **What Remains** | `WhatRemains.test.tsx` | 19 | Stats, analysis, Rekindle button |
+| **Save Indicator** | `SaveIndicator.test.tsx` | 6 | Dirty/saving/saved states |
 
 ### Writing New Tests
 
@@ -239,6 +249,17 @@ import { useAppStore } from '@/stores/appStore'
 const { folderHandle, theme, setTheme } = useAppStore()
 ```
 
+### Preventing Component Recreation
+When passing callbacks that depend on changing props (like `typewriterMode`), use refs to prevent unnecessary recreation:
+```typescript
+const typewriterModeRef = useRef(typewriterMode)
+typewriterModeRef.current = typewriterMode
+
+const callback = useCallback(() => {
+  if (typewriterModeRef.current) { /* ... */ }
+}, []) // Empty deps - uses ref
+```
+
 ## Git Workflow
 
 - `main` branch is production
@@ -252,3 +273,4 @@ const { folderHandle, theme, setTheme } = useAppStore()
 - [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API)
 - [Milkdown Docs](https://milkdown.dev/)
 - [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API)
+- [vite-plugin-pwa](https://vite-pwa-org.netlify.app/)
