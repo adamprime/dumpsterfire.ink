@@ -21,20 +21,37 @@ Dumpster Fire is a 750words.com-inspired writing app that stores all data locall
 
 ```
 src/
-├── components/       # React components
-│   ├── Editor.tsx    # Main writing view with stats
-│   ├── MilkdownEditor.tsx  # Milkdown wrapper
-│   └── Welcome.tsx   # Folder picker / onboarding
-├── hooks/            # Custom React hooks
-├── lib/              # Utilities and services
-│   ├── filesystem.ts # File System API operations
-│   └── crypto.ts     # Web Crypto API (encryption)
-├── stores/           # Zustand stores
-│   └── appStore.ts   # Global app state
-├── styles/           # CSS files
-│   └── index.css     # Tailwind + CSS variables
-└── types/            # TypeScript types
-    └── filesystem.ts # Data schemas
+├── components/          # React components
+│   ├── Editor.tsx       # Main writing view with stats, split view
+│   ├── MilkdownEditor.tsx   # Milkdown wrapper
+│   ├── Welcome.tsx      # Folder picker / onboarding
+│   ├── Calendar.tsx     # Monthly calendar for entry navigation
+│   ├── EntryBrowser.tsx # List view of all entries with search
+│   ├── Settings.tsx     # App settings panel
+│   ├── WhatRemains.tsx  # Analysis panel (stats + AI insights)
+│   ├── SparksAnimation.tsx  # Ember animation on goal reached
+│   ├── FireAnimation.tsx    # Fire transition animation
+│   ├── QuillLoader.tsx  # Loading animation for AI analysis
+│   ├── ApiKeyConfig.tsx # API key management
+│   ├── PasswordSetup.tsx    # Security password setup
+│   └── UnlockScreen.tsx # Password unlock screen
+├── hooks/               # Custom React hooks
+│   └── useWritingStats.ts   # Timer, WPM tracking
+├── lib/                 # Utilities and services
+│   ├── filesystem.ts    # File System API operations
+│   ├── crypto.ts        # Web Crypto API (encryption)
+│   ├── analysis.ts      # AI analysis (Anthropic/OpenAI)
+│   ├── calendar.ts      # Calendar utilities
+│   └── entries.ts       # Entry browsing utilities
+├── stores/              # Zustand stores
+│   ├── appStore.ts      # Global app state (persisted)
+│   └── securityStore.ts # Session security state
+├── styles/              # CSS files
+│   └── index.css        # Tailwind + CSS variables + themes
+├── types/               # TypeScript types
+│   └── filesystem.ts    # Data schemas
+└── test/                # Test setup
+    └── setup.ts         # Vitest setup with testing-library
 ```
 
 ## Commands
@@ -111,17 +128,96 @@ CSS variables in `:root` and `[data-theme="..."]`:
 - `--color-bg`, `--color-surface`, `--color-text`
 - `--color-text-muted`, `--color-accent`, `--color-border`
 
-## Testing Guidelines
+Available themes: dark, light, sepia, matrix, parchment
 
-### Unit Tests (Vitest)
-- Test utility functions in isolation
-- Mock File System API
-- Test Zustand stores
+### "What Remains" Flow (Goal Completion)
+The core UX when a user hits their word goal:
 
-### E2E Tests (Playwright)
-- Test full user flows
-- Use test folder for file operations
-- Clean up after tests
+1. **Goal reached** → `SparksAnimation` triggers (embers rise from bottom)
+2. **Button appears** → "Strike the match" below progress bar
+3. **User clicks** → `FireAnimation` plays (flames engulf screen)
+4. **Split view opens** → Entry masked on left, `WhatRemains` panel on right
+5. **AI analysis** → `QuillLoader` shows while fetching, then displays results
+6. **Click masked entry** → Returns to full-width editor
+
+This flow is managed in `Editor.tsx` with state: `showSparks`, `showFireAnimation`, `showWhatRemains`, `isAnalyzing`.
+
+## Testing
+
+### Setup
+- **Framework**: Vitest with jsdom environment
+- **React Testing**: @testing-library/react + @testing-library/jest-dom
+- **E2E**: Playwright (Chromium only - File System API requirement)
+- **Setup file**: `src/test/setup.ts` loads jest-dom matchers
+
+### Running Tests
+```bash
+npm run test         # Run all unit tests in watch mode
+npm run test -- --run    # Run once (CI mode)
+npm run test:e2e     # Run Playwright E2E tests
+npm run typecheck    # TypeScript check (run before committing)
+```
+
+### Test File Conventions
+- Unit tests: `*.test.ts` or `*.test.tsx` (colocated with source)
+- E2E tests: `e2e/*.spec.ts`
+- Mock external dependencies (canvas-confetti, APIs)
+
+### Current Test Coverage (82 tests)
+
+| Area | File | Tests | What's Tested |
+|------|------|-------|---------------|
+| **Crypto** | `crypto.test.ts` | 17 | Encryption, decryption, hashing, key derivation |
+| **Filesystem** | `filesystem.test.ts` | 9 | Word counting, date formatting |
+| **Calendar** | `calendar.test.ts` | 8 | Month generation, date utilities |
+| **Entries** | `entries.test.ts` | 9 | Entry listing, search, preview |
+| **Writing Stats** | `useWritingStats.test.ts` | 6 | Timer, WPM calculation |
+| **Themes** | `themes.test.ts` | 2 | Theme definitions |
+| **Sparks** | `SparksAnimation.test.tsx` | 5 | Confetti trigger, colors |
+| **Fire** | `FireAnimation.test.tsx` | 6 | Animation phases, timing |
+| **Quill Loader** | `QuillLoader.test.tsx` | 5 | Render, animations |
+| **What Remains** | `WhatRemains.test.tsx` | 15 | Stats, analysis display, interactions |
+
+### Writing New Tests
+
+**Component tests** - use React Testing Library:
+```typescript
+import { render, screen, fireEvent } from '@testing-library/react'
+import { MyComponent } from './MyComponent'
+
+it('does something', () => {
+  render(<MyComponent prop="value" />)
+  expect(screen.getByText('Expected')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button'))
+})
+```
+
+**Async/timer tests** - use fake timers with act():
+```typescript
+import { act } from 'react'
+
+vi.useFakeTimers()
+render(<AnimatedComponent />)
+await act(async () => {
+  vi.advanceTimersByTime(1000)
+})
+vi.useRealTimers()
+```
+
+**Mocking modules**:
+```typescript
+vi.mock('canvas-confetti', () => ({
+  default: vi.fn(),
+}))
+```
+
+### What to Test
+- ✅ Utility functions (pure logic)
+- ✅ Component rendering and interactions
+- ✅ State changes and callbacks
+- ✅ Animation triggers and completion
+- ⚠️ File System API (mock in unit tests, real in E2E)
+- ⚠️ External APIs (mock responses)
 
 ## Common Patterns
 
