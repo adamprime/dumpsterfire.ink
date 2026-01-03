@@ -78,6 +78,10 @@ export function Editor() {
         setMetadata(m)
         setWordCount(countWords(c))
         lastSavedContentRef.current = c
+        // If entry already has analysis, set baseline for rekindle detection
+        if (m.analysis) {
+          setContentAtLastAnalysis(c)
+        }
         await refreshTodaySessions()
         await loadEditorSettings()
       } catch (err) {
@@ -227,11 +231,10 @@ export function Editor() {
     // Start analysis if not already done
     if (!metadata?.analysis) {
       await runAnalysis()
-    } else {
-      // Track content at last analysis for rekindle detection
-      setContentAtLastAnalysis(content)
     }
-  }, [metadata, content, runAnalysis])
+    // Note: contentAtLastAnalysis is only set in runAnalysis() 
+    // so we can detect changes since last analysis ran
+  }, [metadata, runAnalysis])
 
   const handleRekindle = useCallback(async () => {
     await runAnalysis()
@@ -251,6 +254,7 @@ export function Editor() {
       setMetadata(m)
       setWordCount(0)
       lastSavedContentRef.current = c
+      setContentAtLastAnalysis('') // New session has no analysis
       await refreshTodaySessions()
       resetGoalState()
     } catch (err) {
@@ -276,6 +280,11 @@ export function Editor() {
       setMetadata(m)
       setWordCount(countWords(c))
       lastSavedContentRef.current = c
+      if (m.analysis) {
+        setContentAtLastAnalysis(c)
+      } else {
+        setContentAtLastAnalysis('')
+      }
       resetStats()
       resetGoalState()
     } catch (err) {
@@ -325,6 +334,11 @@ export function Editor() {
       setMetadata(m)
       setWordCount(countWords(c))
       lastSavedContentRef.current = c
+      if (m.analysis) {
+        setContentAtLastAnalysis(c)
+      } else {
+        setContentAtLastAnalysis('')
+      }
       
       // Update today's sessions if we're viewing today
       const today = new Date()
@@ -359,6 +373,11 @@ export function Editor() {
       setMetadata(m)
       setWordCount(countWords(c))
       lastSavedContentRef.current = c
+      if (m.analysis) {
+        setContentAtLastAnalysis(c)
+      } else {
+        setContentAtLastAnalysis('')
+      }
       resetStats()
     } catch (err) {
       console.error('Failed to load entry from browser:', err)
