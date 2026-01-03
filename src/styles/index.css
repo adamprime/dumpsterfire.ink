@@ -104,6 +104,8 @@ body {
   font-family: inherit !important;
   font-size: inherit !important;
   line-height: inherit !important;
+  /* Typewriter scroll - add padding at bottom to keep cursor centered */
+  padding-bottom: 50vh;
 }
 
 .milkdown-wrapper .milkdown .ProseMirror * {

@@ -32,9 +32,9 @@ describe('FireAnimation', () => {
     const onComplete = vi.fn()
     render(<FireAnimation trigger={true} onComplete={onComplete} />)
     
-    // Fast forward through animation (800ms rise + 600ms fade = 1400ms)
+    // Fast forward through animation (1200ms rise + 1000ms fade = 2200ms)
     await act(async () => {
-      vi.advanceTimersByTime(1500)
+      vi.advanceTimersByTime(2300)
     })
     
     expect(onComplete).toHaveBeenCalledTimes(1)
@@ -44,9 +44,9 @@ describe('FireAnimation', () => {
     const onComplete = vi.fn()
     render(<FireAnimation trigger={true} onComplete={onComplete} />)
     
-    // Only advance 500ms - should not complete yet
+    // Only advance 1000ms - should not complete yet
     await act(async () => {
-      vi.advanceTimersByTime(500)
+      vi.advanceTimersByTime(1000)
     })
     
     expect(onComplete).not.toHaveBeenCalled()
@@ -68,14 +68,14 @@ describe('FireAnimation', () => {
     // Initially should be in rising phase (visible)
     expect(container.querySelector('.fixed')).not.toBeNull()
     
-    // After 800ms, should start fading
+    // After 1200ms, should start fading
     await act(async () => {
-      vi.advanceTimersByTime(800)
+      vi.advanceTimersByTime(1200)
     })
     
-    // After 1400ms total, should complete and disappear
+    // After 2200ms total, should complete and disappear
     await act(async () => {
-      vi.advanceTimersByTime(600)
+      vi.advanceTimersByTime(1000)
     })
     expect(onComplete).toHaveBeenCalled()
   })

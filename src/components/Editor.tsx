@@ -148,8 +148,8 @@ export function Editor() {
     if (wordGoal > 0 && wordCount >= wordGoal && !hasShownSparksForGoal && !showWhatRemains) {
       setShowSparks(true)
       setHasShownSparksForGoal(true)
-      // Reset sparks after animation
-      setTimeout(() => setShowSparks(false), 3500)
+      // Reset sparks after animation (extended to 5500ms)
+      setTimeout(() => setShowSparks(false), 5500)
     }
   }, [wordCount, wordGoal, hasShownSparksForGoal, showWhatRemains])
 
@@ -475,36 +475,18 @@ export function Editor() {
         </div>
       </header>
 
-      {/* Progress bar with Strike the Match button */}
-      <div className="relative">
+      {/* Progress bar */}
+      <div
+        className="h-1"
+        style={{ backgroundColor: 'var(--color-border)' }}
+      >
         <div
-          className="h-1"
-          style={{ backgroundColor: 'var(--color-border)' }}
-        >
-          <div
-            className="h-full transition-all duration-300"
-            style={{
-              width: `${progress}%`,
-              backgroundColor: goalReached ? '#22c55e' : 'var(--color-accent)',
-            }}
-          />
-        </div>
-        
-        {/* Strike the Match button - appears when goal reached */}
-        {goalReached && !showWhatRemains && (
-          <div className="absolute right-4 top-3 z-10">
-            <button
-              onClick={handleStrikeTheMatch}
-              className="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 shadow-lg hover:scale-105"
-              style={{
-                backgroundColor: 'var(--color-accent)',
-                color: 'white',
-              }}
-            >
-              Strike the match
-            </button>
-          </div>
-        )}
+          className="h-full transition-all duration-300"
+          style={{
+            width: `${progress}%`,
+            backgroundColor: goalReached ? '#22c55e' : 'var(--color-accent)',
+          }}
+        />
       </div>
 
       {/* Main content area - split view when What Remains is open */}
@@ -561,6 +543,23 @@ export function Editor() {
         )}
       </main>
 
+      {/* Strike the Match button - fixed at bottom center when goal reached */}
+      {goalReached && !showWhatRemains && (
+        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-20">
+          <button
+            onClick={handleStrikeTheMatch}
+            className="px-6 py-3 text-base font-medium rounded-lg transition-all duration-300 shadow-xl hover:scale-105 animate-pulse-subtle"
+            style={{
+              backgroundColor: 'var(--color-accent)',
+              color: 'white',
+              boxShadow: '0 0 30px rgba(255, 107, 53, 0.4)',
+            }}
+          >
+            🔥 Strike the match
+          </button>
+        </div>
+      )}
+
       {/* Animations */}
       <SparksAnimation trigger={showSparks} />
       <FireAnimation trigger={showFireAnimation} onComplete={handleFireComplete} />
@@ -578,6 +577,17 @@ export function Editor() {
         }
         .animate-slide-in {
           animation: slide-in 0.5s ease-out forwards;
+        }
+        @keyframes pulse-subtle {
+          0%, 100% {
+            box-shadow: 0 0 30px rgba(255, 107, 53, 0.4);
+          }
+          50% {
+            box-shadow: 0 0 50px rgba(255, 107, 53, 0.6);
+          }
+        }
+        .animate-pulse-subtle {
+          animation: pulse-subtle 2s ease-in-out infinite;
         }
       `}</style>
 

@@ -8,17 +8,17 @@ const ANALYSIS_PROMPT = `Analyze the following personal journal entry and provid
 
 Respond with JSON matching this exact schema (no markdown, just valid JSON):
 {
-  "summary": "2-3 sentence summary of the entry",
+  "summary": "2-3 sentence summary speaking directly to the writer using 'you' and 'your'",
   "themes": ["array", "of", "main", "themes"],
   "sentiment": {
     "overall": "positive|negative|neutral|mixed",
     "score": 0.0 to 1.0 (0=very negative, 1=very positive)
   },
-  "mindset": "Brief description of the writer's mental state",
+  "mindset": "Brief description of the writer's mental state, using 'you' and 'your' (e.g., 'You seem to be feeling...')",
   "topWords": ["five", "most", "significant", "words"]
 }
 
-Be empathetic and insightful. This is personal writing meant for self-reflection.`
+IMPORTANT: Write the summary and mindset in second person, speaking directly to the writer. Use "you" and "your" instead of "the writer" or "they". Be empathetic and insightful. This is personal writing meant for self-reflection.`
 
 export interface AnalysisResult {
   summary: string

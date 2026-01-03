@@ -15,12 +15,12 @@ export function FireAnimation({ trigger, onComplete }: FireAnimationProps) {
     
     const riseTimer = setTimeout(() => {
       setPhase('fading')
-    }, 800)
+    }, 1200) // Extended from 800
 
     const completeTimer = setTimeout(() => {
       setPhase('idle')
       onComplete()
-    }, 1400)
+    }, 2200) // Extended from 1400
 
     return () => {
       clearTimeout(riseTimer)

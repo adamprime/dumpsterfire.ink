@@ -9,24 +9,24 @@ export function SparksAnimation({ trigger }: SparksAnimationProps) {
   useEffect(() => {
     if (!trigger) return
 
-    const duration = 3000
+    const duration = 5000 // Extended from 3000
     const end = Date.now() + duration
 
     const colors = ['#ff6b35', '#f7931e', '#ffcc02', '#ff4444']
 
     const frame = () => {
       confetti({
-        particleCount: 2,
+        particleCount: 3, // Slightly more particles
         angle: 90,
-        spread: 60,
-        startVelocity: 40,
+        spread: 70, // Wider spread
+        startVelocity: 45,
         origin: { x: Math.random(), y: 1.1 },
         colors,
         shapes: ['circle'],
-        scalar: 0.6,
-        gravity: 0.8,
+        scalar: 0.7,
+        gravity: 0.7, // Slower fall
         drift: (Math.random() - 0.5) * 0.5,
-        ticks: 200,
+        ticks: 250, // Longer lifetime
       })
 
       if (Date.now() < end) {
