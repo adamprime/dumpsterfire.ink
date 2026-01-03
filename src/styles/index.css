@@ -95,6 +95,17 @@ body {
   outline: none;
   min-height: 60vh;
   color: var(--color-text);
+  font-family: inherit !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+}
+
+.milkdown-wrapper .milkdown .ProseMirror p,
+.milkdown-wrapper .milkdown .ProseMirror h1,
+.milkdown-wrapper .milkdown .ProseMirror h2,
+.milkdown-wrapper .milkdown .ProseMirror h3,
+.milkdown-wrapper .milkdown .ProseMirror li {
+  font-family: inherit !important;
 }
 
 .milkdown-wrapper .milkdown .ProseMirror p.is-editor-empty:first-child::before {
