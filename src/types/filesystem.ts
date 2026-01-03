@@ -40,6 +40,7 @@ export interface DumpsterFireSettings {
     fontSize: number
     lineHeight: number
     maxWidth: 'narrow' | 'medium' | 'wide' | 'full'
+    fontFamily: 'sans' | 'serif' | 'mono' | 'handwritten' | 'theme'
   }
   goals: {
     dailyWordGoal: number

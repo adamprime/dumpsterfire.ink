@@ -8,11 +8,13 @@ import {
   getTodaySessions,
   loadSession,
 } from '../lib/filesystem'
-import type { EntryMetadata } from '../types/filesystem'
+import type { EntryMetadata, DumpsterFireSettings } from '../types/filesystem'
 import { MilkdownEditor } from './MilkdownEditor'
 import { Calendar } from './Calendar'
 import { EntryBrowser } from './EntryBrowser'
+import { Settings } from './Settings'
 import { useWritingStats } from '../hooks/useWritingStats'
+import { getSettings } from '../lib/filesystem'
 
 export function Editor() {
   const { folderHandle, wordGoal, theme, setTheme, setFolderHandle } = useAppStore()
@@ -24,6 +26,8 @@ export function Editor() {
   const [wordCount, setWordCount] = useState(0)
   const [showCalendar, setShowCalendar] = useState(false)
   const [showBrowser, setShowBrowser] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [editorSettings, setEditorSettings] = useState<DumpsterFireSettings['editor'] | null>(null)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedContentRef = useRef('')
   
@@ -33,6 +37,12 @@ export function Editor() {
     if (!folderHandle) return
     const sessions = await getTodaySessions(folderHandle)
     setTodaySessions(sessions)
+  }, [folderHandle])
+
+  const loadEditorSettings = useCallback(async () => {
+    if (!folderHandle) return
+    const settings = await getSettings(folderHandle)
+    setEditorSettings(settings.editor)
   }, [folderHandle])
 
   useEffect(() => {
@@ -46,6 +56,7 @@ export function Editor() {
         setWordCount(countWords(c))
         lastSavedContentRef.current = c
         await refreshTodaySessions()
+        await loadEditorSettings()
       } catch (err) {
         console.error('Failed to load entry:', err)
       } finally {
@@ -54,7 +65,7 @@ export function Editor() {
     }
 
     loadEntry()
-  }, [folderHandle, refreshTodaySessions])
+  }, [folderHandle, refreshTodaySessions, loadEditorSettings])
 
   const saveContent = useCallback(
     async (newContent: string) => {
@@ -360,6 +371,18 @@ export function Editor() {
           </button>
 
           <button
+            onClick={() => setShowSettings(true)}
+            className="px-3 py-1 text-sm rounded transition-colors"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+            }}
+            title="Settings"
+          >
+            ⚙️
+          </button>
+
+          <button
             onClick={handleDisconnect}
             className="px-3 py-1 text-sm rounded transition-colors"
             style={{ color: 'var(--color-text-muted)' }}
@@ -383,8 +406,22 @@ export function Editor() {
       </div>
 
       <main className="flex-1 flex justify-center p-8">
-        <div className="w-full max-w-2xl">
-          <MilkdownEditor value={content} onChange={handleContentChange} />
+        <div
+          className="w-full"
+          style={{
+            maxWidth: editorSettings?.maxWidth === 'narrow' ? '512px'
+              : editorSettings?.maxWidth === 'wide' ? '896px'
+              : editorSettings?.maxWidth === 'full' ? '100%'
+              : '672px',
+          }}
+        >
+          <MilkdownEditor
+            value={content}
+            onChange={handleContentChange}
+            fontSize={editorSettings?.fontSize}
+            lineHeight={editorSettings?.lineHeight}
+            fontFamily={editorSettings?.fontFamily}
+          />
         </div>
       </main>
 
@@ -399,6 +436,15 @@ export function Editor() {
         <EntryBrowser
           onSelectEntry={handleBrowserSelect}
           onClose={() => setShowBrowser(false)}
+        />
+      )}
+
+      {showSettings && (
+        <Settings
+          onClose={() => {
+            setShowSettings(false)
+            loadEditorSettings()
+          }}
         />
       )}
     </div>

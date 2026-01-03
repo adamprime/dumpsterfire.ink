@@ -56,7 +56,7 @@
   --color-text-muted: #6b4c2a;
   --color-accent: #8b4513;
   --color-border: #c4a77d;
-  --font-editor: Georgia, 'Palatino Linotype', serif;
+  --font-editor: 'Caveat', cursive;
 }
 
 [data-theme="parchment"] {

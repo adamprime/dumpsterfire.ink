@@ -4,7 +4,7 @@ const DEFAULT_SETTINGS: DumpsterFireSettings = {
   version: '1.0.0',
   security: { mode: 'open' },
   ai: { provider: null, autoAnalyze: false },
-  editor: { fontSize: 18, lineHeight: 1.6, maxWidth: 'medium' },
+  editor: { fontSize: 18, lineHeight: 1.6, maxWidth: 'medium', fontFamily: 'theme' },
   goals: { dailyWordGoal: 750, showProgressBar: true },
 }
 

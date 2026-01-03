@@ -6,12 +6,25 @@ import { listener, listenerCtx } from '@milkdown/plugin-listener'
 import { nord } from '@milkdown/theme-nord'
 import '@milkdown/theme-nord/style.css'
 
+type FontFamily = 'sans' | 'serif' | 'mono' | 'handwritten' | 'theme'
+
 interface MilkdownEditorProps {
   value: string
   onChange: (value: string) => void
+  fontSize?: number
+  lineHeight?: number
+  fontFamily?: FontFamily
 }
 
-export function MilkdownEditor({ value, onChange }: MilkdownEditorProps) {
+const FONT_FAMILY_MAP: Record<FontFamily, string> = {
+  theme: 'var(--font-editor)',
+  sans: 'system-ui, -apple-system, sans-serif',
+  serif: 'Georgia, "Times New Roman", serif',
+  mono: 'Consolas, "Courier New", monospace',
+  handwritten: "'Caveat', cursive",
+}
+
+export function MilkdownEditor({ value, onChange, fontSize = 18, lineHeight = 1.6, fontFamily = 'theme' }: MilkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const editorInstanceRef = useRef<Editor | null>(null)
   const initialValueRef = useRef(value)
@@ -55,8 +68,9 @@ export function MilkdownEditor({ value, onChange }: MilkdownEditorProps) {
       ref={editorRef}
       className="milkdown-wrapper prose prose-invert max-w-none min-h-[60vh] focus-within:outline-none"
       style={{
-        fontSize: '18px',
-        lineHeight: '1.75',
+        fontSize: `${fontSize}px`,
+        lineHeight: String(lineHeight),
+        fontFamily: FONT_FAMILY_MAP[fontFamily],
       }}
     />
   )
