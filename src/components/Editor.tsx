@@ -200,6 +200,9 @@ export function Editor() {
     setShowFireAnimation(false)
     setShowWhatRemains(true)
     
+    // Scroll to top so What Remains panel is visible
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    
     // Start analysis if not already done and API is configured
     if (!metadata?.analysis && settings?.ai.provider && content.length >= 50) {
       setIsAnalyzing(true)
@@ -546,6 +549,7 @@ export function Editor() {
               fontSize={editorSettings?.fontSize}
               lineHeight={editorSettings?.lineHeight}
               fontFamily={editorSettings?.fontFamily}
+              typewriterMode={!showWhatRemains}
             />
           </div>
         </div>
