@@ -1,14 +1,18 @@
 @import "tailwindcss";
 
-:root {
+/* Dark theme (default) */
+:root,
+[data-theme="dark"] {
   --color-bg: #1a1a1a;
   --color-surface: #2a2a2a;
   --color-text: #e5e5e5;
   --color-text-muted: #888;
   --color-accent: #f97316;
   --color-border: #3a3a3a;
+  --font-editor: system-ui, -apple-system, sans-serif;
 }
 
+/* Light theme */
 [data-theme="light"] {
   --color-bg: #fafafa;
   --color-surface: #ffffff;
@@ -18,14 +22,85 @@
   --color-border: #e5e5e5;
 }
 
+/* Sepia theme - warm, paper-like */
+[data-theme="sepia"] {
+  --color-bg: #f4ecd8;
+  --color-surface: #faf6eb;
+  --color-text: #5c4b37;
+  --color-text-muted: #8b7355;
+  --color-accent: #b8860b;
+  --color-border: #d4c5a9;
+  --font-editor: Georgia, 'Times New Roman', serif;
+}
+
+/* Matrix theme - retro terminal */
+[data-theme="matrix"] {
+  --color-bg: #0d0d0d;
+  --color-surface: #0a0a0a;
+  --color-text: #00ff00;
+  --color-text-muted: #008800;
+  --color-accent: #00ff00;
+  --color-border: #003300;
+  --font-editor: 'Courier New', Consolas, monospace;
+}
+
+[data-theme="matrix"] .milkdown {
+  text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+}
+
+/* Parchment theme - elegant, aged paper */
+[data-theme="parchment"] {
+  --color-bg: #f5e6c8;
+  --color-surface: #fdf5e6;
+  --color-text: #3d2914;
+  --color-text-muted: #6b4c2a;
+  --color-accent: #8b4513;
+  --color-border: #c4a77d;
+  --font-editor: Georgia, 'Palatino Linotype', serif;
+}
+
+[data-theme="parchment"] {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
+}
+
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
   font-family: system-ui, -apple-system, sans-serif;
   margin: 0;
   min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
   min-height: 100vh;
+}
+
+/* Editor font override based on theme */
+.milkdown {
+  font-family: var(--font-editor);
+}
+
+/* Milkdown editor styles */
+.milkdown-wrapper .milkdown {
+  outline: none;
+}
+
+.milkdown-wrapper .milkdown .editor {
+  outline: none;
+  min-height: 60vh;
+}
+
+.milkdown-wrapper .milkdown .ProseMirror {
+  outline: none;
+  min-height: 60vh;
+  color: var(--color-text);
+}
+
+.milkdown-wrapper .milkdown .ProseMirror p.is-editor-empty:first-child::before {
+  content: 'Start writing...';
+  color: var(--color-text-muted);
+  pointer-events: none;
+  float: left;
+  height: 0;
 }

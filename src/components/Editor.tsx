@@ -235,14 +235,23 @@ export function Editor() {
             </span>
           )}
 
-          <button
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="p-2 rounded transition-colors"
-            style={{ color: 'var(--color-text-muted)' }}
-            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value as typeof theme)}
+            className="px-2 py-1 text-sm rounded cursor-pointer"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-text)',
+              border: '1px solid var(--color-border)',
+            }}
+            title="Select theme"
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
-          </button>
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+            <option value="sepia">Sepia</option>
+            <option value="matrix">Matrix</option>
+            <option value="parchment">Parchment</option>
+          </select>
 
           <button
             onClick={handleNewSession}

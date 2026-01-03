@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import { Editor, rootCtx, defaultValueCtx } from '@milkdown/core'
+import { useEffect, useRef, useCallback } from 'react'
+import { Editor, rootCtx, defaultValueCtx, editorViewOptionsCtx } from '@milkdown/core'
 import { commonmark } from '@milkdown/preset-commonmark'
 import { gfm } from '@milkdown/preset-gfm'
 import { listener, listenerCtx } from '@milkdown/plugin-listener'
@@ -15,6 +15,13 @@ export function MilkdownEditor({ value, onChange }: MilkdownEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const editorInstanceRef = useRef<Editor | null>(null)
   const initialValueRef = useRef(value)
+  
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+
+  const stableOnChange = useCallback((markdown: string) => {
+    onChangeRef.current(markdown)
+  }, [])
 
   useEffect(() => {
     if (!editorRef.current) return
@@ -23,8 +30,9 @@ export function MilkdownEditor({ value, onChange }: MilkdownEditorProps) {
       .config((ctx) => {
         ctx.set(rootCtx, editorRef.current!)
         ctx.set(defaultValueCtx, initialValueRef.current)
+        ctx.set(editorViewOptionsCtx, { editable: () => true })
         ctx.get(listenerCtx).markdownUpdated((_, markdown) => {
-          onChange(markdown)
+          stableOnChange(markdown)
         })
       })
       .config(nord)
@@ -40,12 +48,12 @@ export function MilkdownEditor({ value, onChange }: MilkdownEditorProps) {
     return () => {
       editor.then((e) => e.destroy())
     }
-  }, [onChange])
+  }, [stableOnChange])
 
   return (
     <div
       ref={editorRef}
-      className="prose prose-invert max-w-none min-h-[60vh] focus-within:outline-none"
+      className="milkdown-wrapper prose prose-invert max-w-none min-h-[60vh] focus-within:outline-none"
       style={{
         fontSize: '18px',
         lineHeight: '1.75',

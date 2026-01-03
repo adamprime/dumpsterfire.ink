@@ -1,12 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+export type Theme = 'dark' | 'light' | 'sepia' | 'matrix' | 'parchment'
+
 interface AppState {
   folderHandle: FileSystemDirectoryHandle | null
-  theme: 'dark' | 'light'
+  theme: Theme
   wordGoal: number
   setFolderHandle: (handle: FileSystemDirectoryHandle | null) => void
-  setTheme: (theme: 'dark' | 'light') => void
+  setTheme: (theme: Theme) => void
   setWordGoal: (goal: number) => void
 }
 
