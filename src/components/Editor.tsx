@@ -1,23 +1,31 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '../stores/appStore'
+import { useSecurityStore } from '../stores/securityStore'
 import {
   getOrCreateEntry,
   saveEntry,
+  saveEntryMetadata,
   countWords,
   createNewSession,
   getTodaySessions,
   loadSession,
+  getSettings,
 } from '../lib/filesystem'
+import { analyzeEntry } from '../lib/analysis'
+import { decrypt, deobfuscate } from '../lib/crypto'
 import type { EntryMetadata, DumpsterFireSettings } from '../types/filesystem'
 import { MilkdownEditor } from './MilkdownEditor'
 import { Calendar } from './Calendar'
 import { EntryBrowser } from './EntryBrowser'
 import { Settings } from './Settings'
+import { SparksAnimation } from './SparksAnimation'
+import { FireAnimation } from './FireAnimation'
+import { WhatRemains } from './WhatRemains'
 import { useWritingStats } from '../hooks/useWritingStats'
-import { getSettings } from '../lib/filesystem'
 
 export function Editor() {
   const { folderHandle, wordGoal, theme, setTheme, setFolderHandle } = useAppStore()
+  const { sessionPassword } = useSecurityStore()
   const [content, setContent] = useState('')
   const [metadata, setMetadata] = useState<EntryMetadata | null>(null)
   const [todaySessions, setTodaySessions] = useState<EntryMetadata[]>([])
@@ -28,8 +36,16 @@ export function Editor() {
   const [showBrowser, setShowBrowser] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [editorSettings, setEditorSettings] = useState<DumpsterFireSettings['editor'] | null>(null)
+  const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedContentRef = useRef('')
+  
+  // What Remains state
+  const [showSparks, setShowSparks] = useState(false)
+  const [showFireAnimation, setShowFireAnimation] = useState(false)
+  const [showWhatRemains, setShowWhatRemains] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [hasShownSparksForGoal, setHasShownSparksForGoal] = useState(false)
   
   const { wpm, formattedTime, recordActivity, reset: resetStats } = useWritingStats(wordCount)
 
@@ -41,8 +57,9 @@ export function Editor() {
 
   const loadEditorSettings = useCallback(async () => {
     if (!folderHandle) return
-    const settings = await getSettings(folderHandle)
-    setEditorSettings(settings.editor)
+    const s = await getSettings(folderHandle)
+    setSettings(s)
+    setEditorSettings(s.editor)
   }, [folderHandle])
 
   useEffect(() => {
@@ -126,6 +143,70 @@ export function Editor() {
     return () => window.removeEventListener('blur', handleBlur)
   }, [content, saveContent])
 
+  // Trigger sparks when goal is reached
+  useEffect(() => {
+    if (wordGoal > 0 && wordCount >= wordGoal && !hasShownSparksForGoal && !showWhatRemains) {
+      setShowSparks(true)
+      setHasShownSparksForGoal(true)
+      // Reset sparks after animation
+      setTimeout(() => setShowSparks(false), 3500)
+    }
+  }, [wordCount, wordGoal, hasShownSparksForGoal, showWhatRemains])
+
+  // Reset sparks flag when switching sessions
+  const resetGoalState = useCallback(() => {
+    setHasShownSparksForGoal(false)
+    setShowWhatRemains(false)
+  }, [])
+
+  const getApiKey = useCallback(async (provider: 'anthropic' | 'openai'): Promise<string | null> => {
+    if (!settings) return null
+    
+    const encryptedKey = provider === 'anthropic' 
+      ? settings.ai.anthropicKeyEncrypted 
+      : settings.ai.openaiKeyEncrypted
+    
+    if (!encryptedKey) return null
+    
+    try {
+      if (settings.security.mode === 'open') {
+        return deobfuscate(encryptedKey)
+      } else if (sessionPassword) {
+        return await decrypt(JSON.parse(encryptedKey), sessionPassword)
+      }
+    } catch {
+      return null
+    }
+    return null
+  }, [settings, sessionPassword])
+
+  const handleStrikeTheMatch = useCallback(async () => {
+    setShowFireAnimation(true)
+  }, [])
+
+  const handleFireComplete = useCallback(async () => {
+    setShowFireAnimation(false)
+    setShowWhatRemains(true)
+    
+    // Start analysis if not already done and API is configured
+    if (!metadata?.analysis && settings?.ai.provider && content.length >= 50) {
+      setIsAnalyzing(true)
+      try {
+        const apiKey = await getApiKey(settings.ai.provider)
+        if (apiKey && folderHandle && metadata) {
+          const analysis = await analyzeEntry(content, settings.ai.provider, apiKey)
+          const updatedMetadata: EntryMetadata = { ...metadata, analysis }
+          await saveEntryMetadata(folderHandle, metadata.date, metadata.session, updatedMetadata)
+          setMetadata(updatedMetadata)
+        }
+      } catch (err) {
+        console.error('Analysis failed:', err)
+      } finally {
+        setIsAnalyzing(false)
+      }
+    }
+  }, [metadata, settings, content, getApiKey, folderHandle])
+
   const handleNewSession = async () => {
     if (!folderHandle) return
     if (saveTimeoutRef.current) {
@@ -141,6 +222,7 @@ export function Editor() {
       setWordCount(0)
       lastSavedContentRef.current = c
       await refreshTodaySessions()
+      resetGoalState()
     } catch (err) {
       console.error('Failed to create new session:', err)
     } finally {
@@ -165,6 +247,7 @@ export function Editor() {
       setWordCount(countWords(c))
       lastSavedContentRef.current = c
       resetStats()
+      resetGoalState()
     } catch (err) {
       console.error('Failed to switch session:', err)
     } finally {
@@ -392,38 +475,111 @@ export function Editor() {
         </div>
       </header>
 
-      <div
-        className="h-1"
-        style={{ backgroundColor: 'var(--color-border)' }}
-      >
+      {/* Progress bar with Strike the Match button */}
+      <div className="relative">
         <div
-          className="h-full transition-all duration-300"
-          style={{
-            width: `${progress}%`,
-            backgroundColor: goalReached ? '#22c55e' : 'var(--color-accent)',
-          }}
-        />
-      </div>
-
-      <main className="flex-1 flex justify-center p-8">
-        <div
-          className="w-full"
-          style={{
-            maxWidth: editorSettings?.maxWidth === 'narrow' ? '512px'
-              : editorSettings?.maxWidth === 'wide' ? '896px'
-              : editorSettings?.maxWidth === 'full' ? '100%'
-              : '672px',
-          }}
+          className="h-1"
+          style={{ backgroundColor: 'var(--color-border)' }}
         >
-          <MilkdownEditor
-            value={content}
-            onChange={handleContentChange}
-            fontSize={editorSettings?.fontSize}
-            lineHeight={editorSettings?.lineHeight}
-            fontFamily={editorSettings?.fontFamily}
+          <div
+            className="h-full transition-all duration-300"
+            style={{
+              width: `${progress}%`,
+              backgroundColor: goalReached ? '#22c55e' : 'var(--color-accent)',
+            }}
           />
         </div>
+        
+        {/* Strike the Match button - appears when goal reached */}
+        {goalReached && !showWhatRemains && (
+          <div className="absolute right-4 top-3 z-10">
+            <button
+              onClick={handleStrikeTheMatch}
+              className="px-4 py-2 text-sm font-medium rounded-lg transition-all duration-300 shadow-lg hover:scale-105"
+              style={{
+                backgroundColor: 'var(--color-accent)',
+                color: 'white',
+              }}
+            >
+              Strike the match
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Main content area - split view when What Remains is open */}
+      <main className="flex-1 flex overflow-hidden">
+        {/* Editor section */}
+        <div 
+          className={`flex-1 flex justify-center p-8 transition-all duration-500 relative ${
+            showWhatRemains ? 'w-1/2' : 'w-full'
+          }`}
+        >
+          {/* Mask overlay when What Remains is open */}
+          {showWhatRemains && (
+            <div 
+              className="absolute inset-0 z-10 cursor-pointer transition-opacity duration-300"
+              style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+              onClick={() => setShowWhatRemains(false)}
+            />
+          )}
+          
+          <div
+            className="w-full"
+            style={{
+              maxWidth: showWhatRemains ? '100%' : (
+                editorSettings?.maxWidth === 'narrow' ? '512px'
+                : editorSettings?.maxWidth === 'wide' ? '896px'
+                : editorSettings?.maxWidth === 'full' ? '100%'
+                : '672px'
+              ),
+            }}
+          >
+            <MilkdownEditor
+              value={content}
+              onChange={handleContentChange}
+              fontSize={editorSettings?.fontSize}
+              lineHeight={editorSettings?.lineHeight}
+              fontFamily={editorSettings?.fontFamily}
+            />
+          </div>
+        </div>
+
+        {/* What Remains panel */}
+        {showWhatRemains && metadata && (
+          <div 
+            className="w-1/2 border-l animate-slide-in"
+            style={{ borderColor: 'var(--color-border)' }}
+          >
+            <WhatRemains
+              metadata={metadata}
+              isAnalyzing={isAnalyzing}
+              onClose={() => setShowWhatRemains(false)}
+              wordGoal={wordGoal}
+            />
+          </div>
+        )}
       </main>
+
+      {/* Animations */}
+      <SparksAnimation trigger={showSparks} />
+      <FireAnimation trigger={showFireAnimation} onComplete={handleFireComplete} />
+
+      <style>{`
+        @keyframes slide-in {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-in {
+          animation: slide-in 0.5s ease-out forwards;
+        }
+      `}</style>
 
       {showCalendar && (
         <Calendar
