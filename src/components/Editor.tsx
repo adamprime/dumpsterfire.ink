@@ -24,7 +24,11 @@ import { WhatRemains } from './WhatRemains'
 import { SaveIndicator } from './SaveIndicator'
 import { useWritingStats } from '../hooks/useWritingStats'
 
-export function Editor() {
+interface EditorProps {
+  onBackToDashboard?: () => void
+}
+
+export function Editor({ onBackToDashboard }: EditorProps) {
   const { folderHandle, wordGoal, theme, setTheme, setFolderHandle } = useAppStore()
   const { sessionPassword } = useSecurityStore()
   const [content, setContent] = useState('')
@@ -407,6 +411,19 @@ export function Editor() {
         }}
       >
         <div className="flex items-center gap-4">
+          {onBackToDashboard && (
+            <button
+              onClick={onBackToDashboard}
+              className="p-1.5 rounded-lg transition-colors hover:opacity-70"
+              style={{ color: 'var(--color-text-muted)' }}
+              title="Back to Dashboard"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </button>
+          )}
           <h1 className="font-semibold" style={{ color: 'var(--color-accent)' }}>
             Dumpster Fire
           </h1>

@@ -279,3 +279,50 @@ export async function saveEntryMetadata(
   await metaWritable.write(JSON.stringify(metadata, null, 2))
   await metaWritable.close()
 }
+
+/**
+ * Get all entries across all years/months
+ * Returns metadata sorted by date (newest first)
+ */
+export async function getAllEntries(
+  handle: FileSystemDirectoryHandle
+): Promise<EntryMetadata[]> {
+  const entries: EntryMetadata[] = []
+
+  try {
+    const entriesDir = await handle.getDirectoryHandle('entries')
+
+    // Iterate through years
+    for await (const [, yearHandle] of entriesDir.entries()) {
+      if (yearHandle.kind !== 'directory') continue
+
+      const yearDir = yearHandle as FileSystemDirectoryHandle
+
+      // Iterate through months
+      for await (const [, monthHandle] of yearDir.entries()) {
+        if (monthHandle.kind !== 'directory') continue
+
+        const monthDir = monthHandle as FileSystemDirectoryHandle
+
+        // Find all metadata files
+        for await (const [fileName] of monthDir.entries()) {
+          if (fileName.endsWith('.meta.json')) {
+            try {
+              const metaFile = await monthDir.getFileHandle(fileName)
+              const file = await metaFile.getFile()
+              const content = await file.text()
+              entries.push(JSON.parse(content))
+            } catch {
+              // Skip invalid files
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    // entries directory doesn't exist yet
+  }
+
+  // Sort by date descending (newest first)
+  return entries.sort((a, b) => b.date.localeCompare(a.date))
+}

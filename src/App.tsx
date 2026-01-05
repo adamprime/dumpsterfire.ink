@@ -4,14 +4,17 @@ import { useSecurityStore } from './stores/securityStore'
 import { getSettings } from './lib/filesystem'
 import type { DumpsterFireSettings } from './types/filesystem'
 import { Welcome } from './components/Welcome'
+import { Dashboard } from './components/Dashboard'
 import { Editor } from './components/Editor'
 import { UnlockScreen } from './components/UnlockScreen'
+type AppView = 'dashboard' | 'editor'
 
 export default function App() {
   const { folderHandle, theme, setFolderHandle } = useAppStore()
   const { isUnlocked, setUnlocked } = useSecurityStore()
   const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [view, setView] = useState<AppView>('dashboard')
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -27,6 +30,11 @@ export default function App() {
       setSettings(s)
       setCheckingAuth(false)
     })
+  }, [folderHandle])
+
+  // Reset view when folder changes
+  useEffect(() => {
+    setView('dashboard')
   }, [folderHandle])
 
   if (!folderHandle) {
@@ -54,5 +62,23 @@ export default function App() {
     )
   }
 
-  return <Editor />
+  const wordGoal = settings?.goals?.dailyWordGoal ?? 750
+
+  if (view === 'dashboard') {
+    return (
+      <Dashboard
+        folderHandle={folderHandle}
+        wordGoal={wordGoal}
+        onStartWriting={() => setView('editor')}
+        onOpenSettings={() => setView('editor')} // Settings accessible from Editor
+        onDisconnect={() => setFolderHandle(null)}
+      />
+    )
+  }
+
+  return (
+    <Editor 
+      onBackToDashboard={() => setView('dashboard')}
+    />
+  )
 }
