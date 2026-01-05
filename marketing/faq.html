@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAQ - Dumpster Fire</title>
+  <meta name="description" content="Frequently asked questions about Dumpster Fire, the local-first writing app.">
+  <meta name="theme-color" content="#1a1a1a">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  
+  <style>
+    :root {
+      --color-bg: #1a1a1a;
+      --color-surface: #2a2a2a;
+      --color-text: #e5e5e5;
+      --color-text-muted: #888;
+      --color-accent: #ff6b35;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background-color: var(--color-bg);
+      color: var(--color-text);
+      line-height: 1.6;
+    }
+    
+    a {
+      color: var(--color-accent);
+      text-decoration: none;
+    }
+    
+    a:hover {
+      text-decoration: underline;
+    }
+    
+    /* Header */
+    header {
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--color-accent);
+    }
+    
+    nav a {
+      margin-left: 2rem;
+      color: var(--color-text-muted);
+    }
+    
+    nav a:hover {
+      color: var(--color-text);
+      text-decoration: none;
+    }
+    
+    /* Main */
+    main {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 3rem 2rem 6rem;
+    }
+    
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .faq-item {
+      margin-bottom: 2.5rem;
+    }
+    
+    .faq-item h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--color-text);
+    }
+    
+    .faq-item p {
+      color: var(--color-text-muted);
+    }
+    
+    .faq-item p + p {
+      margin-top: 0.75rem;
+    }
+    
+    .faq-item code {
+      background: var(--color-surface);
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      font-size: 0.9em;
+    }
+    
+    .back-link {
+      display: inline-block;
+      margin-bottom: 2rem;
+      color: var(--color-text-muted);
+    }
+    
+    /* Footer */
+    footer {
+      padding: 3rem 2rem;
+      text-align: center;
+      color: var(--color-text-muted);
+      font-size: 0.875rem;
+    }
+    
+    footer a {
+      color: var(--color-text-muted);
+    }
+    
+    footer a:hover {
+      color: var(--color-text);
+    }
+    
+    /* Responsive */
+    @media (max-width: 640px) {
+      header {
+        flex-direction: column;
+        gap: 1rem;
+      }
+      
+      nav a {
+        margin-left: 1rem;
+        margin-right: 1rem;
+      }
+      
+      h1 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="index.html" class="logo">🔥 Dumpster Fire</a>
+    <nav>
+      <a href="index.html#features">Features</a>
+      <a href="index.html#how-it-works">How It Works</a>
+      <a href="faq.html">FAQ</a>
+    </nav>
+  </header>
+  
+  <main>
+    <a href="index.html" class="back-link">← Back to home</a>
+    
+    <h1>Frequently Asked Questions</h1>
+    
+    <div class="faq-item">
+      <h2>Is my writing really private?</h2>
+      <p>Yes. Your entries are stored directly on your device in a folder you choose. Nothing is ever sent to our servers because we don't have any servers. The only network request the app makes is to the AI provider (Anthropic or OpenAI) when you analyze an entry - and that only happens if you've configured an API key and triggered the analysis.</p>
+    </div>
+    
+    <div class="faq-item">
+      <h2>What browsers are supported?</h2>
+      <p>Dumpster Fire requires a Chromium-based browser (Chrome, Edge, Brave, Arc) version 86 or later. This is because we use the File System Access API to read and write files directly on your device.</p>
+      <p>Safari and Firefox don't support this API, so the app won't work in those browsers.</p>
+    </div>
+    
+    <div class="faq-item">
+      <h2>Where is my data stored?</h2>
+      <p>Your entries are saved as plain markdown files (<code>.md</code>) in a folder you select. Metadata like word count and analysis results are stored in companion <code>.meta.json</code> files. You can open these files in any text editor.</p>
+      <p>The folder structure looks like: <code>entries/2026/01/2026-01-15-1.md</code></p>
+    </div>
+    
+    <div class="faq-item">
+      <h2>How does AI analysis work?</h2>
+      <p>When you hit your word goal and "strike the match," the app sends your entry text to either Anthropic (Claude) or OpenAI (GPT) - whichever you've configured. The AI identifies themes, mood, and patterns in your writing, then returns a summary.</p>
+      <p>You need to provide your own API key, which is stored encrypted on your device. The AI providers have their own privacy policies, but your entries are not stored or used for training by either provider when using the API.</p>
+    </div>
+    
+    <div class="faq-item">
+      <h2>Can I use it offline?</h2>
+      <p>Yes! Dumpster Fire is a Progressive Web App (PWA). Once you've loaded it once, you can install it and use it offline. The only feature that requires internet is AI analysis.</p>
+    </div>
+    
+    <div class="faq-item">
+      <h2>What's with the fire theme?</h2>
+      <p>The concept is inspired by the therapeutic practice of writing unsent letters and burning them. You write freely (spill the ink), symbolically release the words (light it up), and gain clarity from what emerges (what remains). The fire animations are just for fun - your entries aren't actually deleted!</p>
+    </div>
+    
+    <div class="faq-item">
+      <h2>Why 750 words?</h2>
+      <p>750 words is roughly three pages of writing - a length that's long enough to get past surface thoughts and into something meaningful, but short enough to be doable daily. It's the default, but you can change your goal in settings.</p>
+      <p>The concept comes from <a href="https://750words.com" target="_blank">750words.com</a>, which inspired this project.</p>
+    </div>
+    
+    <div class="faq-item">
+      <h2>Is this free?</h2>
+      <p>The app itself is completely free and open source. If you want to use AI analysis, you'll need your own API key from Anthropic or OpenAI, which have their own pricing (typically a few cents per analysis).</p>
+    </div>
+    
+    <div class="faq-item">
+      <h2>Can I sync across devices?</h2>
+      <p>Not directly in the app, but since your entries are plain files, you can store them in a synced folder (Dropbox, iCloud Drive, Google Drive, etc.) and access them from any device with a supported browser.</p>
+    </div>
+    
+    <div class="faq-item">
+      <h2>I found a bug / have a feature request</h2>
+      <p>Please open an issue on <a href="https://github.com/adamprime/dumpsterfire.ink" target="_blank">GitHub</a> or reach out on <a href="https://twitter.com/adamprime" target="_blank">Twitter</a>.</p>
+    </div>
+  </main>
+  
+  <footer>
+    <p>Made with 🔥 by <a href="https://twitter.com/adamprime">@adamprime</a></p>
+  </footer>
+</body>
+</html>
