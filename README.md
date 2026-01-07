@@ -55,7 +55,7 @@ Requires a Chromium-based browser (Chrome 86+, Edge 86+) for File System Access 
 npm run dev       # Start dev server
 npm run build     # Production build  
 npm run preview   # Preview production build
-npm run test      # Run unit tests (91 tests)
+npm run test      # Run unit tests (103 tests)
 npm run test:e2e  # Run E2E tests
 npm run typecheck # TypeScript check
 npm run lint      # ESLint
