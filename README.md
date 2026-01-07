@@ -81,4 +81,4 @@ your-folder/
 
 ## License
 
-MIT
+[Elastic License 2.0](./LICENSE) - Free to use, modify, and self-host. Cannot be offered as a managed service.
