@@ -4,6 +4,7 @@ interface FileSystemDirectoryHandle {
   entries(): AsyncIterableIterator<[string, FileSystemHandle]>
   getDirectoryHandle(name: string, options?: { create?: boolean }): Promise<FileSystemDirectoryHandle>
   getFileHandle(name: string, options?: { create?: boolean }): Promise<FileSystemFileHandle>
+  removeEntry(name: string, options?: { recursive?: boolean }): Promise<void>
 }
 
 interface FileSystemFileHandle {
@@ -14,11 +15,4 @@ interface FileSystemFileHandle {
 interface FileSystemWritableFileStream extends WritableStream {
   write(data: string | BufferSource | Blob): Promise<void>
   close(): Promise<void>
-}
-
-interface Window {
-  showDirectoryPicker(options?: {
-    mode?: 'read' | 'readwrite'
-    startIn?: 'desktop' | 'documents' | 'downloads' | 'music' | 'pictures' | 'videos'
-  }): Promise<FileSystemDirectoryHandle>
 }

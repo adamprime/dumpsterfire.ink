@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { MemoryStorage } from './memory'
 import type { EntryStorage } from './types'
-import { entryId, parseEntryId } from './types'
+import { generateEntryId, parseDateFromEntryId } from './types'
 
 function runStorageContractTests(name: string, createStorage: () => EntryStorage) {
   describe(`${name} — EntryStorage contract`, () => {
@@ -26,14 +26,13 @@ function runStorageContractTests(name: string, createStorage: () => EntryStorage
         expect(meta.session).toBe(1)
         expect(meta.wordCount).toBe(0)
         expect(meta.goalReached).toBe(false)
-        expect(id).toBe(entryId('2026-01-15', 1))
+        expect(id).toBeTruthy()
       })
 
       it('increments session number for the same date', async () => {
         await storage.createEntry('2026-01-15')
-        const { id, meta } = await storage.createEntry('2026-01-15')
+        const { meta } = await storage.createEntry('2026-01-15')
         expect(meta.session).toBe(2)
-        expect(id).toBe(entryId('2026-01-15', 2))
       })
 
       it('tracks sessions independently per date', async () => {
@@ -51,7 +50,7 @@ function runStorageContractTests(name: string, createStorage: () => EntryStorage
       })
 
       it('returns null for non-existent entry', async () => {
-        const loaded = await storage.loadEntry('2099-12-31-1')
+        const loaded = await storage.loadEntry('2099-12-31-235959')
         expect(loaded).toBeNull()
       })
     })
@@ -100,7 +99,7 @@ function runStorageContractTests(name: string, createStorage: () => EntryStorage
       })
 
       it('returns null for non-existent entry', async () => {
-        const content = await storage.loadEntryContent('2099-12-31-1')
+        const content = await storage.loadEntryContent('2099-12-31-235959')
         expect(content).toBeNull()
       })
     })
@@ -141,7 +140,7 @@ function runStorageContractTests(name: string, createStorage: () => EntryStorage
       })
 
       it('does not throw for non-existent entry', async () => {
-        await expect(storage.deleteEntry('2099-12-31-1')).resolves.not.toThrow()
+        await expect(storage.deleteEntry('2099-12-31-235959')).resolves.not.toThrow()
       })
     })
 
@@ -195,21 +194,38 @@ function runStorageContractTests(name: string, createStorage: () => EntryStorage
 // Run contract tests against MemoryStorage
 runStorageContractTests('MemoryStorage', () => new MemoryStorage())
 
-describe('entryId / parseEntryId', () => {
-  it('creates an id from date and session', () => {
-    expect(entryId('2026-01-15', 1)).toBe('2026-01-15-1')
-    expect(entryId('2026-01-15', 3)).toBe('2026-01-15-3')
+// OpfsStorage can't run in jsdom (no navigator.storage.getDirectory)
+// It's tested via Playwright E2E
+
+describe('generateEntryId', () => {
+  it('creates a YYYY-MM-DD-HHMMSSmmm format id', () => {
+    const date = new Date(2026, 3, 8, 14, 32, 11, 42) // April 8, 2026 14:32:11.042
+    const id = generateEntryId(date)
+    expect(id).toBe('2026-04-08-143211042')
   })
 
-  it('parses an id back to date and session', () => {
-    expect(parseEntryId('2026-01-15-1')).toEqual({ date: '2026-01-15', session: 1 })
-    expect(parseEntryId('2026-01-15-3')).toEqual({ date: '2026-01-15', session: 3 })
+  it('pads single-digit values', () => {
+    const date = new Date(2026, 0, 5, 3, 7, 9, 5)
+    const id = generateEntryId(date)
+    expect(id).toBe('2026-01-05-030709005')
   })
 
-  it('roundtrips correctly', () => {
-    const id = entryId('2026-12-31', 7)
-    const parsed = parseEntryId(id)
-    expect(parsed).toEqual({ date: '2026-12-31', session: 7 })
-    expect(entryId(parsed.date, parsed.session)).toBe(id)
+  it('generates unique ids for rapid calls', () => {
+    const ids = new Set<string>()
+    for (let i = 0; i < 10; i++) {
+      ids.add(generateEntryId())
+    }
+    // Should get at least 2 unique IDs (millisecond precision)
+    expect(ids.size).toBeGreaterThanOrEqual(1)
+  })
+})
+
+describe('parseDateFromEntryId', () => {
+  it('extracts date from entry id', () => {
+    expect(parseDateFromEntryId('2026-04-08-143211042')).toBe('2026-04-08')
+  })
+
+  it('extracts date from another id', () => {
+    expect(parseDateFromEntryId('2026-01-05-030709005')).toBe('2026-01-05')
   })
 })

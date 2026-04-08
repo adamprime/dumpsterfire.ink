@@ -19,14 +19,19 @@ export interface EntryStorage {
   saveStats(stats: TotalStats): Promise<void>
 }
 
-export function entryId(date: string, session: number): string {
-  return `${date}-${session}`
+export function generateEntryId(date: Date = new Date()): string {
+  const y = date.getFullYear()
+  const mo = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  const h = String(date.getHours()).padStart(2, '0')
+  const mi = String(date.getMinutes()).padStart(2, '0')
+  const s = String(date.getSeconds()).padStart(2, '0')
+  const ms = String(date.getMilliseconds()).padStart(3, '0')
+  return `${y}-${mo}-${d}-${h}${mi}${s}${ms}`
 }
 
-export function parseEntryId(id: string): { date: string; session: number } {
-  const lastDash = id.lastIndexOf('-')
-  return {
-    date: id.slice(0, lastDash),
-    session: parseInt(id.slice(lastDash + 1), 10),
-  }
+export function parseDateFromEntryId(id: string): string {
+  // "2026-04-08-143211" -> "2026-04-08"
+  return id.slice(0, 10)
 }
+

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { countWords, formatDate } from './filesystem'
+import { countWords, formatDate } from './entry-utils'
 
 describe('countWords', () => {
   it('counts words in a simple string', () => {

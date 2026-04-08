@@ -5,7 +5,6 @@ import {
   countWords,
   getOrCreateTodayEntry,
   getTodaySessions,
-  entryId,
 } from '../lib/entry-utils'
 import { analyzeEntry } from '../lib/analysis'
 import { decrypt, deobfuscate } from '../lib/crypto'
@@ -258,8 +257,8 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     }
   }
 
-  const handleSwitchSession = async (session: number) => {
-    if (!storage || !metadata || session === metadata.session) return
+  const handleSwitchSession = async (targetId: string) => {
+    if (!storage || !metadata || targetId === currentEntryId) return
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
@@ -267,7 +266,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
 
     setLoading(true)
     try {
-      const id = entryId(metadata.date, session)
+      const id = targetId
       const loaded = await storage.loadEntry(id)
       if (loaded) {
         setContent(loaded.content)
@@ -318,12 +317,11 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     setLoading(true)
     try {
       const entry = entries[0]!
-      const id = entryId(entry.date, entry.session)
-      const loaded = await storage!.loadEntry(id)
+      const loaded = await storage!.loadEntry(entry.id)
       if (loaded) {
         setContent(loaded.content)
         setMetadata(loaded.meta)
-        setCurrentEntryId(id)
+        setCurrentEntryId(entry.id)
         setWordCount(countWords(loaded.content))
         lastSavedContentRef.current = loaded.content
         if (loaded.meta.analysis) {
@@ -360,12 +358,11 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     
     setLoading(true)
     try {
-      const id = entryId(entry.date, entry.session)
-      const loaded = await storage!.loadEntry(id)
+      const loaded = await storage!.loadEntry(entry.id)
       if (loaded) {
         setContent(loaded.content)
         setMetadata(loaded.meta)
-        setCurrentEntryId(id)
+        setCurrentEntryId(entry.id)
         setWordCount(countWords(loaded.content))
         lastSavedContentRef.current = loaded.content
         if (loaded.meta.analysis) {
@@ -425,13 +422,13 @@ export function Editor({ onBackToDashboard }: EditorProps) {
               <span>/</span>
               {todaySessions.length > 1 ? (
                 <select
-                  value={metadata.session}
-                  onChange={(e) => handleSwitchSession(Number(e.target.value))}
+                  value={currentEntryId || ''}
+                  onChange={(e) => handleSwitchSession(e.target.value)}
                   className="bg-transparent border rounded px-1 py-0.5 cursor-pointer"
                   style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                 >
                   {todaySessions.map((s) => (
-                    <option key={s.session} value={s.session}>
+                    <option key={s.id} value={s.id}>
                       Session {s.session} ({s.wordCount} words)
                     </option>
                   ))}

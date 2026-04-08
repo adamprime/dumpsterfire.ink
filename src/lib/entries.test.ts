@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { getPreview, searchEntries, formatEntryDate } from './entries'
-import type { EntryWithPreview } from './entries'
+import { getPreview, searchEntries, formatEntryDate } from './entry-utils'
+import type { EntryWithPreview } from './entry-utils'
 
 describe('entries utilities', () => {
   describe('getPreview', () => {

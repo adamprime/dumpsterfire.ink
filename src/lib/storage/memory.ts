@@ -1,7 +1,7 @@
 import type { EntryMetadata, DumpsterFireSettings } from '../../types/filesystem'
 import type { TotalStats } from '../stats'
 import type { EntryStorage } from './types'
-import { entryId } from './types'
+import { generateEntryId } from './types'
 
 const DEFAULT_SETTINGS: DumpsterFireSettings = {
   version: '1.0.0',
@@ -13,7 +13,7 @@ const DEFAULT_SETTINGS: DumpsterFireSettings = {
 
 export class MemoryStorage implements EntryStorage {
   private entries = new Map<string, { content: string; meta: EntryMetadata }>()
-  private settings: DumpsterFireSettings = { ...DEFAULT_SETTINGS }
+  private settings: DumpsterFireSettings = structuredClone(DEFAULT_SETTINGS)
   private stats: TotalStats | null = null
 
   async initialize(): Promise<void> {
@@ -46,19 +46,26 @@ export class MemoryStorage implements EntryStorage {
   }
 
   async createEntry(date: string): Promise<{ id: string; meta: EntryMetadata }> {
-    let maxSession = 0
+    let id = generateEntryId()
+    while (this.entries.has(id)) {
+      // Collision within same millisecond -- bump by 1ms
+      const parsed = id.slice(11) // HHMMSSmmm
+      const ms = parseInt(parsed.slice(6), 10) + 1
+      id = id.slice(0, 17) + String(ms).padStart(3, '0')
+    }
+
+    // Compute session number as count of same-day entries + 1
+    let sessionCount = 0
     for (const entry of this.entries.values()) {
       if (entry.meta.date === date) {
-        maxSession = Math.max(maxSession, entry.meta.session)
+        sessionCount++
       }
     }
-    const session = maxSession + 1
-    const id = entryId(date, session)
 
     const meta: EntryMetadata = {
-      id: crypto.randomUUID(),
+      id,
       date,
-      session,
+      session: sessionCount + 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       wordCount: 0,

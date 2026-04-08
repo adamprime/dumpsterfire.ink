@@ -1,24 +1,24 @@
+import { useState } from 'react'
 import { useAppStore } from '../stores/appStore'
-import { FsaStorage } from '../lib/storage/fsa'
+import { OpfsStorage } from '../lib/storage/opfs'
 
 export function Welcome() {
   const { setStorage } = useAppStore()
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSelectFolder = async () => {
+  const handleStart = async () => {
     try {
-      const handle = await window.showDirectoryPicker({
-        mode: 'readwrite',
-        startIn: 'documents',
-      })
-      const storage = new FsaStorage(handle)
+      const storage = new OpfsStorage()
       await storage.initialize()
       setStorage(storage)
     } catch (err) {
-      if ((err as Error).name !== 'AbortError') {
-        console.error('Failed to select folder:', err)
-      }
+      console.error('Failed to initialize storage:', err)
+      setError('Failed to initialize local storage. Please try again.')
     }
   }
+
+  const isIosSafari = /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    !('standalone' in window.navigator && (window.navigator as { standalone?: boolean }).standalone)
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-8">
@@ -36,25 +36,45 @@ export function Welcome() {
         >
           <h2 className="text-xl font-semibold mb-4">Get Started</h2>
           <p className="mb-6" style={{ color: 'var(--color-text-muted)' }}>
-            Choose a folder where your writing will be stored. Everything stays on your
-            computer - no cloud, no servers, just you and your words.
+            Your writing is stored locally in your browser. No cloud, no
+            servers, just you and your words.
           </p>
 
           <button
-            onClick={handleSelectFolder}
+            onClick={handleStart}
             className="w-full py-3 px-6 rounded-lg font-medium transition-colors cursor-pointer"
             style={{
               backgroundColor: 'var(--color-accent)',
               color: 'white',
             }}
           >
-            Select Writing Folder
+            Start Writing
           </button>
+
+          {error && (
+            <p className="text-sm mt-3" style={{ color: '#ef4444' }}>
+              {error}
+            </p>
+          )}
         </div>
 
+        {isIosSafari && (
+          <div
+            className="rounded-lg p-4 mb-4 text-sm text-left"
+            style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-accent)' }}
+          >
+            <p className="font-medium mb-1">Add to Home Screen recommended</p>
+            <p style={{ color: 'var(--color-text-muted)' }}>
+              On iOS Safari, browser storage may be cleared after 7 days of
+              inactivity. Add this app to your Home Screen for persistent
+              storage, or enable GitHub Sync in settings to back up your writing.
+            </p>
+          </div>
+        )}
+
         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          Your data never leaves your device. We use the File System Access API
-          to read and write directly to your chosen folder.
+          Your data never leaves your device. Everything is stored locally
+          in your browser's private storage.
         </p>
       </div>
     </div>

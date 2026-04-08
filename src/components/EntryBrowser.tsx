@@ -5,7 +5,6 @@ import {
   loadEntriesWithPreviews,
   searchEntries,
   formatEntryDate,
-  entryId,
 } from '../lib/entry-utils'
 import type { EntryWithPreview } from '../lib/entry-utils'
 import { analyzeEntry } from '../lib/analysis'
@@ -83,8 +82,7 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
     e.stopPropagation()
     if (!storage || !settings?.ai.provider) return
     
-    const entryKey = `${entry.date}-${entry.session}`
-    setAnalyzingEntry(entryKey)
+    setAnalyzingEntry(entry.id)
     setAnalyzeError(null)
     
     try {
@@ -94,8 +92,7 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
         return
       }
       
-      const id = entryId(entry.date, entry.session)
-      const content = await storage.loadEntryContent(id)
+      const content = await storage.loadEntryContent(entry.id)
       if (!content || content.length < 50) {
         setAnalyzeError('Entry too short to analyze')
         return
@@ -107,7 +104,7 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
         ...entry,
         analysis,
       }
-      await storage.saveEntryMetadata(id, updatedMetadata)
+      await storage.saveEntryMetadata(entry.id, updatedMetadata)
       
       await loadEntries()
     } catch (err) {
@@ -165,7 +162,7 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
             <div className="space-y-2">
               {filteredEntries.map((entry) => (
                 <button
-                  key={`${entry.date}-${entry.session}`}
+                  key={entry.id}
                   onClick={() => handleEntryClick(entry)}
                   className="w-full text-left p-3 rounded transition-colors hover:opacity-90"
                   style={{
@@ -198,15 +195,15 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
                       ) : settings?.ai.provider && entry.wordCount >= 50 ? (
                         <button
                           onClick={(e) => handleAnalyze(entry, e)}
-                          disabled={analyzingEntry === `${entry.date}-${entry.session}`}
+                          disabled={analyzingEntry === entry.id}
                           className="text-xs px-2 py-0.5 rounded transition-colors"
                           style={{
                             backgroundColor: 'var(--color-accent)',
                             color: 'white',
-                            opacity: analyzingEntry === `${entry.date}-${entry.session}` ? 0.5 : 1,
+                            opacity: analyzingEntry === entry.id ? 0.5 : 1,
                           }}
                         >
-                          {analyzingEntry === `${entry.date}-${entry.session}` ? '...' : 'Analyze'}
+                          {analyzingEntry === entry.id ? '...' : 'Analyze'}
                         </button>
                       ) : null}
                       <span

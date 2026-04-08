@@ -1,6 +1,6 @@
 import type { EntryMetadata } from '../types/filesystem'
 import type { EntryStorage } from './storage/types'
-import { entryId, parseEntryId } from './storage/types'
+import { generateEntryId, parseDateFromEntryId } from './storage/types'
 
 export interface EntryWithPreview extends EntryMetadata {
   preview: string
@@ -56,14 +56,14 @@ export async function getOrCreateTodayEntry(
   const entries = await storage.listEntries()
   const todayEntries = entries
     .filter((e) => e.date === dateStr)
-    .sort((a, b) => a.session - b.session)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 
   if (todayEntries.length > 0) {
     const latest = todayEntries[todayEntries.length - 1]!
-    const id = entryId(latest.date, latest.session)
-    const loaded = await storage.loadEntry(id)
+    // meta.id IS the storage key
+    const loaded = await storage.loadEntry(latest.id)
     if (loaded) {
-      return { id, content: loaded.content, meta: loaded.meta }
+      return { id: latest.id, content: loaded.content, meta: loaded.meta }
     }
   }
 
@@ -79,7 +79,7 @@ export async function getTodaySessions(
   const entries = await storage.listEntries()
   return entries
     .filter((e) => e.date === dateStr)
-    .sort((a, b) => a.session - b.session)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
 }
 
 export async function loadEntriesWithPreviews(
@@ -89,8 +89,8 @@ export async function loadEntriesWithPreviews(
   const result: EntryWithPreview[] = []
 
   for (const meta of entries) {
-    const id = entryId(meta.date, meta.session)
-    const content = await storage.loadEntryContent(id)
+    // meta.id IS the storage key
+    const content = await storage.loadEntryContent(meta.id)
     result.push({
       ...meta,
       preview: content ? getPreview(content, 100) : '',
@@ -100,7 +100,7 @@ export async function loadEntriesWithPreviews(
   return result.sort((a, b) => {
     const dateCompare = b.date.localeCompare(a.date)
     if (dateCompare !== 0) return dateCompare
-    return b.session - a.session
+    return b.createdAt.localeCompare(a.createdAt)
   })
 }
 
@@ -125,4 +125,4 @@ export function filterEntriesByMonth(
   return result
 }
 
-export { entryId, parseEntryId }
+export { generateEntryId, parseDateFromEntryId }
