@@ -1,13 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '../stores/appStore'
-import { useSecurityStore } from '../stores/securityStore'
 import {
   countWords,
   getOrCreateTodayEntry,
   getTodaySessions,
 } from '../lib/entry-utils'
 import { analyzeEntry } from '../lib/analysis'
-import { decrypt, deobfuscate } from '../lib/crypto'
 import type { EntryMetadata, DumpsterFireSettings } from '../types/filesystem'
 import { MilkdownEditor } from './MilkdownEditor'
 import { Calendar } from './Calendar'
@@ -25,7 +23,6 @@ interface EditorProps {
 
 export function Editor({ onBackToDashboard }: EditorProps) {
   const { storage, wordGoal, theme, setTheme, setStorage } = useAppStore()
-  const { sessionPassword } = useSecurityStore()
   const [content, setContent] = useState('')
   const [metadata, setMetadata] = useState<EntryMetadata | null>(null)
   const [currentEntryId, setCurrentEntryId] = useState<string | null>(null)
@@ -171,26 +168,12 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     setShowWhatRemains(false)
   }, [])
 
-  const getApiKey = useCallback(async (provider: 'anthropic' | 'openai'): Promise<string | null> => {
+  const getApiKey = useCallback((provider: 'anthropic' | 'openai'): string | null => {
     if (!settings) return null
-    
-    const encryptedKey = provider === 'anthropic' 
-      ? settings.ai.anthropicKeyEncrypted 
-      : settings.ai.openaiKeyEncrypted
-    
-    if (!encryptedKey) return null
-    
-    try {
-      if (settings.security.mode === 'open') {
-        return deobfuscate(encryptedKey)
-      } else if (sessionPassword) {
-        return await decrypt(JSON.parse(encryptedKey), sessionPassword)
-      }
-    } catch {
-      return null
-    }
-    return null
-  }, [settings, sessionPassword])
+    return provider === 'anthropic'
+      ? settings.ai.anthropicKey ?? null
+      : settings.ai.openaiKey ?? null
+  }, [settings])
 
   const handleStrikeTheMatch = useCallback(async () => {
     setShowFireAnimation(true)
@@ -202,7 +185,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     setIsAnalyzing(true)
     setContentAtLastAnalysis(content)
     try {
-      const apiKey = await getApiKey(settings.ai.provider)
+      const apiKey = getApiKey(settings.ai.provider)
       if (apiKey) {
         const analysis = await analyzeEntry(content, settings.ai.provider, apiKey)
         const updatedMetadata: EntryMetadata = { ...metadata, analysis }

@@ -1,3 +1,5 @@
+import type { ModelChoice } from '../lib/analysis'
+
 export interface EntryMetadata {
   id: string
   date: string
@@ -25,15 +27,11 @@ export interface EntryAnalysis {
 
 export interface DumpsterFireSettings {
   version: string
-  security: {
-    mode: 'open' | 'app-lock' | 'encrypted'
-    passwordHash?: string
-    passwordSalt?: string
-  }
   ai: {
     provider: 'anthropic' | 'openai' | null
-    anthropicKeyEncrypted?: string
-    openaiKeyEncrypted?: string
+    anthropicKey?: string
+    openaiKey?: string
+    modelChoice?: ModelChoice
     autoAnalyze: boolean
   }
   editor: {
@@ -46,10 +44,4 @@ export interface DumpsterFireSettings {
     dailyWordGoal: number
     showProgressBar: boolean
   }
-}
-
-export interface AnalysisQueueItem {
-  entryPath: string
-  queuedAt: string
-  attempts: number
 }

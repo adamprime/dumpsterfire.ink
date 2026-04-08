@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '../stores/appStore'
-import { useSecurityStore } from '../stores/securityStore'
 import {
   loadEntriesWithPreviews,
   searchEntries,
@@ -8,7 +7,6 @@ import {
 } from '../lib/entry-utils'
 import type { EntryWithPreview } from '../lib/entry-utils'
 import { analyzeEntry } from '../lib/analysis'
-import { decrypt, deobfuscate } from '../lib/crypto'
 import type { EntryMetadata, DumpsterFireSettings } from '../types/filesystem'
 
 interface EntryBrowserProps {
@@ -18,7 +16,6 @@ interface EntryBrowserProps {
 
 export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
   const { storage } = useAppStore()
-  const { sessionPassword } = useSecurityStore()
   const [entries, setEntries] = useState<EntryWithPreview[]>([])
   const [filteredEntries, setFilteredEntries] = useState<EntryWithPreview[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -57,25 +54,11 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
     onSelectEntry(entry)
   }
 
-  const getApiKey = async (provider: 'anthropic' | 'openai'): Promise<string | null> => {
+  const getApiKey = (provider: 'anthropic' | 'openai'): string | null => {
     if (!settings) return null
-    
-    const encryptedKey = provider === 'anthropic' 
-      ? settings.ai.anthropicKeyEncrypted 
-      : settings.ai.openaiKeyEncrypted
-    
-    if (!encryptedKey) return null
-    
-    try {
-      if (settings.security.mode === 'open') {
-        return deobfuscate(encryptedKey)
-      } else if (sessionPassword) {
-        return await decrypt(JSON.parse(encryptedKey), sessionPassword)
-      }
-    } catch {
-      return null
-    }
-    return null
+    return provider === 'anthropic'
+      ? settings.ai.anthropicKey ?? null
+      : settings.ai.openaiKey ?? null
   }
 
   const handleAnalyze = async (entry: EntryWithPreview, e: React.MouseEvent) => {
@@ -86,7 +69,7 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
     setAnalyzeError(null)
     
     try {
-      const apiKey = await getApiKey(settings.ai.provider)
+      const apiKey = getApiKey(settings.ai.provider)
       if (!apiKey) {
         setAnalyzeError('No API key configured')
         return

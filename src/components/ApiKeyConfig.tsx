@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '../stores/appStore'
-import { useSecurityStore } from '../stores/securityStore'
-import { encrypt, decrypt, obfuscate, deobfuscate } from '../lib/crypto'
 import type { DumpsterFireSettings } from '../types/filesystem'
 
 interface ApiKeyConfigProps {
@@ -10,7 +8,6 @@ interface ApiKeyConfigProps {
 
 export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
   const { storage } = useAppStore()
-  const { sessionPassword } = useSecurityStore()
   const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
   const [anthropicKey, setAnthropicKey] = useState('')
   const [openaiKey, setOpenaiKey] = useState('')
@@ -21,79 +18,30 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
 
   useEffect(() => {
     if (!storage) return
-    
-    const loadSettings = async () => {
-      const s = await storage.getSettings()
+
+    storage.getSettings().then((s) => {
       setSettings(s)
       setProvider(s.ai.provider)
-      
-      // Decrypt/deobfuscate existing keys
-      if (s.ai.anthropicKeyEncrypted) {
-        try {
-          if (s.security.mode === 'open') {
-            setAnthropicKey(deobfuscate(s.ai.anthropicKeyEncrypted))
-          } else if (sessionPassword) {
-            const decrypted = await decrypt(JSON.parse(s.ai.anthropicKeyEncrypted), sessionPassword)
-            setAnthropicKey(decrypted)
-          }
-        } catch {
-          // Key couldn't be decrypted
-        }
-      }
-      
-      if (s.ai.openaiKeyEncrypted) {
-        try {
-          if (s.security.mode === 'open') {
-            setOpenaiKey(deobfuscate(s.ai.openaiKeyEncrypted))
-          } else if (sessionPassword) {
-            const decrypted = await decrypt(JSON.parse(s.ai.openaiKeyEncrypted), sessionPassword)
-            setOpenaiKey(decrypted)
-          }
-        } catch {
-          // Key couldn't be decrypted
-        }
-      }
-    }
-    
-    loadSettings()
-  }, [storage, sessionPassword])
+      if (s.ai.anthropicKey) setAnthropicKey(s.ai.anthropicKey)
+      if (s.ai.openaiKey) setOpenaiKey(s.ai.openaiKey)
+    })
+  }, [storage])
 
   const handleSave = async () => {
     if (!storage || !settings) return
-    
+
     setSaving(true)
     try {
-      let anthropicKeyEncrypted: string | undefined
-      let openaiKeyEncrypted: string | undefined
-      
-      if (anthropicKey) {
-        if (settings.security.mode === 'open') {
-          anthropicKeyEncrypted = obfuscate(anthropicKey)
-        } else if (sessionPassword) {
-          const encrypted = await encrypt(anthropicKey, sessionPassword)
-          anthropicKeyEncrypted = JSON.stringify(encrypted)
-        }
-      }
-      
-      if (openaiKey) {
-        if (settings.security.mode === 'open') {
-          openaiKeyEncrypted = obfuscate(openaiKey)
-        } else if (sessionPassword) {
-          const encrypted = await encrypt(openaiKey, sessionPassword)
-          openaiKeyEncrypted = JSON.stringify(encrypted)
-        }
-      }
-      
       const updatedSettings: DumpsterFireSettings = {
         ...settings,
         ai: {
           ...settings.ai,
           provider,
-          anthropicKeyEncrypted,
-          openaiKeyEncrypted,
+          anthropicKey: anthropicKey || undefined,
+          openaiKey: openaiKey || undefined,
         },
       }
-      
+
       await storage.saveSettings(updatedSettings)
       onClose()
     } catch (err) {
@@ -106,10 +54,10 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
   const testConnection = async (type: 'anthropic' | 'openai') => {
     const key = type === 'anthropic' ? anthropicKey : openaiKey
     if (!key) return
-    
+
     setTesting(type)
     setTestResult(null)
-    
+
     try {
       if (type === 'anthropic') {
         const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -121,12 +69,12 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
             'anthropic-dangerous-direct-browser-access': 'true',
           },
           body: JSON.stringify({
-            model: 'claude-3-haiku-20240307',
+            model: 'claude-haiku-4-5-20251001',
             max_tokens: 10,
             messages: [{ role: 'user', content: 'Hi' }],
           }),
         })
-        
+
         if (response.ok) {
           setTestResult({ type: 'success', message: 'Anthropic API key is valid!' })
         } else {
@@ -137,7 +85,7 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
         const response = await fetch('https://api.openai.com/v1/models', {
           headers: { 'Authorization': `Bearer ${key}` },
         })
-        
+
         if (response.ok) {
           setTestResult({ type: 'success', message: 'OpenAI API key is valid!' })
         } else {
@@ -145,7 +93,7 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
           setTestResult({ type: 'error', message: error.error?.message || 'Invalid API key' })
         }
       }
-    } catch (err) {
+    } catch {
       setTestResult({ type: 'error', message: 'Failed to connect. Check your internet connection.' })
     } finally {
       setTesting(null)
@@ -166,12 +114,11 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
         <div className="p-4 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <h2 className="text-lg font-semibold">AI Configuration</h2>
           <p className="text-sm mt-1" style={{ color: 'var(--color-text-muted)' }}>
-            Your API keys are stored locally and {settings?.security.mode === 'open' ? 'obfuscated' : 'encrypted'}.
+            Your API keys are stored locally in your browser.
           </p>
         </div>
 
         <div className="p-4 space-y-4">
-          {/* Provider Selection */}
           <div>
             <label className="block text-sm font-medium mb-2">Default Provider</label>
             <div className="flex gap-2">
@@ -192,7 +139,6 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
             </div>
           </div>
 
-          {/* Anthropic Key */}
           <div>
             <label className="block text-sm font-medium mb-1">Anthropic API Key</label>
             <div className="flex gap-2">
@@ -224,7 +170,6 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
             </div>
           </div>
 
-          {/* OpenAI Key */}
           <div>
             <label className="block text-sm font-medium mb-1">OpenAI API Key</label>
             <div className="flex gap-2">
