@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { useSecurityStore } from '../stores/securityStore'
-import { getAllEntries, searchEntries, formatEntryDate, getEntryContent } from '../lib/entries'
-import { getSettings, saveEntryMetadata } from '../lib/filesystem'
+import {
+  loadEntriesWithPreviews,
+  searchEntries,
+  formatEntryDate,
+  entryId,
+} from '../lib/entry-utils'
+import type { EntryWithPreview } from '../lib/entry-utils'
 import { analyzeEntry } from '../lib/analysis'
 import { decrypt, deobfuscate } from '../lib/crypto'
-import type { EntryWithPreview } from '../lib/entries'
 import type { EntryMetadata, DumpsterFireSettings } from '../types/filesystem'
 
 interface EntryBrowserProps {
@@ -14,7 +18,7 @@ interface EntryBrowserProps {
 }
 
 export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
-  const { folderHandle } = useAppStore()
+  const { storage } = useAppStore()
   const { sessionPassword } = useSecurityStore()
   const [entries, setEntries] = useState<EntryWithPreview[]>([])
   const [filteredEntries, setFilteredEntries] = useState<EntryWithPreview[]>([])
@@ -25,11 +29,11 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
   const [analyzeError, setAnalyzeError] = useState<string | null>(null)
 
   const loadEntries = useCallback(async () => {
-    if (!folderHandle) return
+    if (!storage) return
     
     setLoading(true)
     try {
-      const allEntries = await getAllEntries(folderHandle)
+      const allEntries = await loadEntriesWithPreviews(storage)
       setEntries(allEntries)
       setFilteredEntries(allEntries)
     } catch (err) {
@@ -37,14 +41,14 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
     } finally {
       setLoading(false)
     }
-  }, [folderHandle])
+  }, [storage])
 
   useEffect(() => {
     loadEntries()
-    if (folderHandle) {
-      getSettings(folderHandle).then(setSettings)
+    if (storage) {
+      storage.getSettings().then(setSettings)
     }
-  }, [loadEntries, folderHandle])
+  }, [loadEntries, storage])
 
   useEffect(() => {
     setFilteredEntries(searchEntries(entries, searchQuery))
@@ -77,7 +81,7 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
 
   const handleAnalyze = async (entry: EntryWithPreview, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!folderHandle || !settings?.ai.provider) return
+    if (!storage || !settings?.ai.provider) return
     
     const entryKey = `${entry.date}-${entry.session}`
     setAnalyzingEntry(entryKey)
@@ -90,7 +94,8 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
         return
       }
       
-      const content = await getEntryContent(folderHandle, entry.date, entry.session)
+      const id = entryId(entry.date, entry.session)
+      const content = await storage.loadEntryContent(id)
       if (!content || content.length < 50) {
         setAnalyzeError('Entry too short to analyze')
         return
@@ -98,14 +103,12 @@ export function EntryBrowser({ onSelectEntry, onClose }: EntryBrowserProps) {
       
       const analysis = await analyzeEntry(content, settings.ai.provider, apiKey)
       
-      // Save analysis to metadata
       const updatedMetadata: EntryMetadata = {
         ...entry,
         analysis,
       }
-      await saveEntryMetadata(folderHandle, entry.date, entry.session, updatedMetadata)
+      await storage.saveEntryMetadata(id, updatedMetadata)
       
-      // Refresh entries
       await loadEntries()
     } catch (err) {
       console.error('Analysis failed:', err)

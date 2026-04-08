@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from './stores/appStore'
 import { useSecurityStore } from './stores/securityStore'
-import { getSettings } from './lib/filesystem'
 import type { DumpsterFireSettings } from './types/filesystem'
 import { Welcome } from './components/Welcome'
 import { Dashboard } from './components/Dashboard'
@@ -10,7 +9,7 @@ import { UnlockScreen } from './components/UnlockScreen'
 type AppView = 'dashboard' | 'editor'
 
 export default function App() {
-  const { folderHandle, theme, setFolderHandle } = useAppStore()
+  const { storage, theme, setStorage } = useAppStore()
   const { isUnlocked, setUnlocked } = useSecurityStore()
   const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
@@ -21,23 +20,23 @@ export default function App() {
   }, [theme])
 
   useEffect(() => {
-    if (!folderHandle) {
+    if (!storage) {
       setCheckingAuth(false)
       return
     }
 
-    getSettings(folderHandle).then((s) => {
+    storage.getSettings().then((s) => {
       setSettings(s)
       setCheckingAuth(false)
     })
-  }, [folderHandle])
+  }, [storage])
 
-  // Reset view when folder changes
+  // Reset view when storage changes
   useEffect(() => {
     setView('dashboard')
-  }, [folderHandle])
+  }, [storage])
 
-  if (!folderHandle) {
+  if (!storage) {
     return <Welcome />
   }
 
@@ -57,7 +56,7 @@ export default function App() {
       <UnlockScreen
         settings={settings}
         onUnlock={setUnlocked}
-        onDisconnect={() => setFolderHandle(null)}
+        onDisconnect={() => setStorage(null)}
       />
     )
   }
@@ -67,11 +66,10 @@ export default function App() {
   if (view === 'dashboard') {
     return (
       <Dashboard
-        folderHandle={folderHandle}
         wordGoal={wordGoal}
         onStartWriting={() => setView('editor')}
-        onOpenSettings={() => setView('editor')} // Settings accessible from Editor
-        onDisconnect={() => setFolderHandle(null)}
+        onOpenSettings={() => setView('editor')}
+        onDisconnect={() => setStorage(null)}
       />
     )
   }

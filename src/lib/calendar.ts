@@ -1,5 +1,8 @@
 import type { EntryMetadata } from '../types/filesystem'
 
+// Note: getEntriesForMonth FSA function has been replaced by
+// filterEntriesByMonth in entry-utils.ts (pure in-memory filtering)
+
 export interface DayInfo {
   date: Date
   dayOfMonth: number
@@ -68,38 +71,4 @@ export function getMonthName(month: number): string {
   return months[month] || ''
 }
 
-export async function getEntriesForMonth(
-  handle: FileSystemDirectoryHandle,
-  year: number,
-  month: number
-): Promise<Map<string, EntryMetadata[]>> {
-  const entries = new Map<string, EntryMetadata[]>()
-  const monthStr = String(month + 1).padStart(2, '0')
-  
-  try {
-    const entriesDir = await handle.getDirectoryHandle('entries')
-    const yearDir = await entriesDir.getDirectoryHandle(String(year))
-    const monthDir = await yearDir.getDirectoryHandle(monthStr)
-    
-    for await (const [name] of monthDir.entries()) {
-      if (name.endsWith('.meta.json')) {
-        try {
-          const metaFile = await monthDir.getFileHandle(name)
-          const file = await metaFile.getFile()
-          const content = await file.text()
-          const metadata: EntryMetadata = JSON.parse(content)
-          
-          const existing = entries.get(metadata.date) || []
-          existing.push(metadata)
-          entries.set(metadata.date, existing.sort((a, b) => a.session - b.session))
-        } catch {
-          // Skip invalid files
-        }
-      }
-    }
-  } catch {
-    // Month directory doesn't exist yet
-  }
-  
-  return entries
-}
+

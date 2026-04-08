@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useAppStore } from '../stores/appStore'
 import { StreakDisplay } from './StreakDisplay'
 import { ActivityGrid } from './ActivityGrid'
 import { QuickStats } from './QuickStats'
 import { calculateStreak, getActivityForMonth, calculateTotalStats, type TotalStats } from '../lib/stats'
-import { getAllEntries } from '../lib/filesystem'
 import type { EntryMetadata } from '../types/filesystem'
 
 interface DashboardProps {
-  folderHandle: FileSystemDirectoryHandle
   wordGoal: number
   onStartWriting: () => void
   onOpenSettings: () => void
@@ -15,12 +14,12 @@ interface DashboardProps {
 }
 
 export function Dashboard({ 
-  folderHandle, 
   wordGoal, 
   onStartWriting, 
   onOpenSettings,
   onDisconnect 
 }: DashboardProps) {
+  const { storage } = useAppStore()
   const [entries, setEntries] = useState<EntryMetadata[]>([])
   const [loading, setLoading] = useState(true)
   const [streak, setStreak] = useState(0)
@@ -37,9 +36,10 @@ export function Dashboard({
   const [viewYear, setViewYear] = useState(now.getFullYear())
 
   useEffect(() => {
+    if (!storage) return
     const loadData = async () => {
       try {
-        const allEntries = await getAllEntries(folderHandle)
+        const allEntries = await storage.listEntries()
         setEntries(allEntries)
         setStreak(calculateStreak(allEntries))
         setStats(calculateTotalStats(allEntries))
@@ -50,7 +50,7 @@ export function Dashboard({
       }
     }
     loadData()
-  }, [folderHandle])
+  }, [storage])
 
   const activity = getActivityForMonth(entries, viewYear, viewMonth)
 
@@ -140,7 +140,7 @@ export function Dashboard({
               boxShadow: '0 4px 20px rgba(255, 107, 53, 0.3)',
             }}
           >
-            🔥 Start Writing
+            Start Writing
           </button>
           <p 
             className="text-sm mt-3"

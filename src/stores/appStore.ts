@@ -1,13 +1,14 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { EntryStorage } from '../lib/storage/types'
 
 export type Theme = 'dark' | 'light' | 'sepia' | 'matrix' | 'parchment'
 
 interface AppState {
-  folderHandle: FileSystemDirectoryHandle | null
+  storage: EntryStorage | null
   theme: Theme
   wordGoal: number
-  setFolderHandle: (handle: FileSystemDirectoryHandle | null) => void
+  setStorage: (storage: EntryStorage | null) => void
   setTheme: (theme: Theme) => void
   setWordGoal: (goal: number) => void
 }
@@ -15,10 +16,10 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      folderHandle: null,
+      storage: null,
       theme: 'dark',
       wordGoal: 750,
-      setFolderHandle: (handle) => set({ folderHandle: handle }),
+      setStorage: (storage) => set({ storage }),
       setTheme: (theme) => set({ theme }),
       setWordGoal: (goal) => set({ wordGoal: goal }),
     }),

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAppStore } from '../stores/appStore'
-import { getMonthDays, getMonthName, getEntriesForMonth } from '../lib/calendar'
+import { getMonthDays, getMonthName } from '../lib/calendar'
+import { filterEntriesByMonth } from '../lib/entry-utils'
 import type { DayInfo } from '../lib/calendar'
 import type { EntryMetadata } from '../types/filesystem'
 
@@ -10,7 +11,7 @@ interface CalendarProps {
 }
 
 export function Calendar({ onSelectDate, onClose }: CalendarProps) {
-  const { folderHandle, wordGoal } = useAppStore()
+  const { storage, wordGoal } = useAppStore()
   const [currentDate, setCurrentDate] = useState(() => new Date())
   const [days, setDays] = useState<DayInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -19,11 +20,12 @@ export function Calendar({ onSelectDate, onClose }: CalendarProps) {
   const month = currentDate.getMonth()
 
   const loadMonth = useCallback(async () => {
-    if (!folderHandle) return
+    if (!storage) return
     
     setLoading(true)
     try {
-      const entries = await getEntriesForMonth(folderHandle, year, month)
+      const allEntries = await storage.listEntries()
+      const entries = filterEntriesByMonth(allEntries, year, month)
       const monthDays = getMonthDays(year, month, entries, wordGoal)
       setDays(monthDays)
     } catch (err) {
@@ -31,7 +33,7 @@ export function Calendar({ onSelectDate, onClose }: CalendarProps) {
     } finally {
       setLoading(false)
     }
-  }, [folderHandle, year, month, wordGoal])
+  }, [storage, year, month, wordGoal])
 
   useEffect(() => {
     loadMonth()

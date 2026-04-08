@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { useSecurityStore } from '../stores/securityStore'
-import { getSettings, saveSettings } from '../lib/filesystem'
 import { encrypt, decrypt, obfuscate, deobfuscate } from '../lib/crypto'
 import type { DumpsterFireSettings } from '../types/filesystem'
 
@@ -10,7 +9,7 @@ interface ApiKeyConfigProps {
 }
 
 export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
-  const { folderHandle } = useAppStore()
+  const { storage } = useAppStore()
   const { sessionPassword } = useSecurityStore()
   const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
   const [anthropicKey, setAnthropicKey] = useState('')
@@ -21,10 +20,10 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
   const [testResult, setTestResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   useEffect(() => {
-    if (!folderHandle) return
+    if (!storage) return
     
     const loadSettings = async () => {
-      const s = await getSettings(folderHandle)
+      const s = await storage.getSettings()
       setSettings(s)
       setProvider(s.ai.provider)
       
@@ -57,10 +56,10 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
     }
     
     loadSettings()
-  }, [folderHandle, sessionPassword])
+  }, [storage, sessionPassword])
 
   const handleSave = async () => {
-    if (!folderHandle || !settings) return
+    if (!storage || !settings) return
     
     setSaving(true)
     try {
@@ -95,7 +94,7 @@ export function ApiKeyConfig({ onClose }: ApiKeyConfigProps) {
         },
       }
       
-      await saveSettings(folderHandle, updatedSettings)
+      await storage.saveSettings(updatedSettings)
       onClose()
     } catch (err) {
       console.error('Failed to save API keys:', err)

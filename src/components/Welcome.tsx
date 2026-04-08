@@ -1,8 +1,8 @@
 import { useAppStore } from '../stores/appStore'
-import { initializeFolder } from '../lib/filesystem'
+import { FsaStorage } from '../lib/storage/fsa'
 
 export function Welcome() {
-  const { setFolderHandle } = useAppStore()
+  const { setStorage } = useAppStore()
 
   const handleSelectFolder = async () => {
     try {
@@ -10,8 +10,9 @@ export function Welcome() {
         mode: 'readwrite',
         startIn: 'documents',
       })
-      await initializeFolder(handle)
-      setFolderHandle(handle)
+      const storage = new FsaStorage(handle)
+      await storage.initialize()
+      setStorage(storage)
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
         console.error('Failed to select folder:', err)

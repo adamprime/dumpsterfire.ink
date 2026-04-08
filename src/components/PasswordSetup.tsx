@@ -1,16 +1,16 @@
 import { useState } from 'react'
+import { useAppStore } from '../stores/appStore'
 import { generateSalt, hashPassword } from '../lib/crypto'
-import { getSettings, saveSettings } from '../lib/filesystem'
 import type { DumpsterFireSettings } from '../types/filesystem'
 
 interface PasswordSetupProps {
-  folderHandle: FileSystemDirectoryHandle
   targetMode: 'app-lock' | 'encrypted'
   onComplete: (password: string) => void
   onCancel: () => void
 }
 
-export function PasswordSetup({ folderHandle, targetMode, onComplete, onCancel }: PasswordSetupProps) {
+export function PasswordSetup({ targetMode, onComplete, onCancel }: PasswordSetupProps) {
+  const { storage } = useAppStore()
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
@@ -32,10 +32,11 @@ export function PasswordSetup({ folderHandle, targetMode, onComplete, onCancel }
 
     setSaving(true)
     try {
+      if (!storage) throw new Error('No storage available')
       const salt = generateSalt()
       const hash = await hashPassword(password, salt)
       
-      const settings = await getSettings(folderHandle)
+      const settings = await storage.getSettings()
       const updatedSettings: DumpsterFireSettings = {
         ...settings,
         security: {
@@ -45,7 +46,7 @@ export function PasswordSetup({ folderHandle, targetMode, onComplete, onCancel }
         },
       }
       
-      await saveSettings(folderHandle, updatedSettings)
+      await storage.saveSettings(updatedSettings)
       onComplete(password)
     } catch (err) {
       console.error('Failed to set password:', err)

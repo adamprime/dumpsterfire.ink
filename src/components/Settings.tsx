@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAppStore, type Theme } from '../stores/appStore'
 import { useSecurityStore } from '../stores/securityStore'
-import { getSettings, saveSettings } from '../lib/filesystem'
 import type { DumpsterFireSettings } from '../types/filesystem'
 import { PasswordSetup } from './PasswordSetup'
 import { ApiKeyConfig } from './ApiKeyConfig'
@@ -27,7 +26,7 @@ const FONTS: { value: DumpsterFireSettings['editor']['fontFamily']; label: strin
 ]
 
 export function Settings({ onClose }: SettingsProps) {
-  const { folderHandle, wordGoal, setWordGoal, theme, setTheme } = useAppStore()
+  const { storage, wordGoal, setWordGoal, theme, setTheme } = useAppStore()
   const { setUnlocked } = useSecurityStore()
   const [localGoal, setLocalGoal] = useState(wordGoal)
   const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
@@ -36,12 +35,12 @@ export function Settings({ onClose }: SettingsProps) {
   const [showApiConfig, setShowApiConfig] = useState(false)
 
   useEffect(() => {
-    if (!folderHandle) return
-    getSettings(folderHandle).then(setSettings)
-  }, [folderHandle])
+    if (!storage) return
+    storage.getSettings().then(setSettings)
+  }, [storage])
 
   const handleSave = async () => {
-    if (!folderHandle || !settings) return
+    if (!storage || !settings) return
     
     setSaving(true)
     try {
@@ -51,7 +50,7 @@ export function Settings({ onClose }: SettingsProps) {
         ...settings,
         goals: { ...settings.goals, dailyWordGoal: localGoal },
       }
-      await saveSettings(folderHandle, updatedSettings)
+      await storage.saveSettings(updatedSettings)
       onClose()
     } catch (err) {
       console.error('Failed to save settings:', err)
@@ -141,13 +140,13 @@ export function Settings({ onClose }: SettingsProps) {
                 <button
                   key={value}
                   onClick={async () => {
-                    if (!settings || !folderHandle) return
+                    if (!settings || !storage) return
                     const newSettings = {
                       ...settings,
                       editor: { ...settings.editor, fontFamily: value },
                     }
                     setSettings(newSettings)
-                    await saveSettings(folderHandle, newSettings)
+                    await storage.saveSettings(newSettings)
                   }}
                   className="px-2 py-2 text-xs rounded transition-colors"
                   style={{
@@ -176,13 +175,13 @@ export function Settings({ onClose }: SettingsProps) {
             <select
               value={settings?.editor.maxWidth || 'medium'}
               onChange={async (e) => {
-                if (!settings || !folderHandle) return
+                if (!settings || !storage) return
                 const newSettings = {
                   ...settings,
                   editor: { ...settings.editor, maxWidth: e.target.value as 'narrow' | 'medium' | 'wide' | 'full' },
                 }
                 setSettings(newSettings)
-                await saveSettings(folderHandle, newSettings)
+                await storage.saveSettings(newSettings)
               }}
               className="w-full px-3 py-2 rounded text-sm"
               style={{
@@ -209,13 +208,13 @@ export function Settings({ onClose }: SettingsProps) {
               max={24}
               value={settings?.editor.fontSize || 18}
               onChange={async (e) => {
-                if (!settings || !folderHandle) return
+                if (!settings || !storage) return
                 const newSettings = {
                   ...settings,
                   editor: { ...settings.editor, fontSize: parseInt(e.target.value) },
                 }
                 setSettings(newSettings)
-                await saveSettings(folderHandle, newSettings)
+                await storage.saveSettings(newSettings)
               }}
               className="w-full"
             />
@@ -233,13 +232,13 @@ export function Settings({ onClose }: SettingsProps) {
               step={0.1}
               value={settings?.editor.lineHeight || 1.6}
               onChange={async (e) => {
-                if (!settings || !folderHandle) return
+                if (!settings || !storage) return
                 const newSettings = {
                   ...settings,
                   editor: { ...settings.editor, lineHeight: parseFloat(e.target.value) },
                 }
                 setSettings(newSettings)
-                await saveSettings(folderHandle, newSettings)
+                await storage.saveSettings(newSettings)
               }}
               className="w-full"
             />
@@ -290,7 +289,7 @@ export function Settings({ onClose }: SettingsProps) {
                           security: { mode: 'open' as const },
                         }
                         setSettings(newSettings)
-                        await saveSettings(folderHandle!, newSettings)
+                        await storage!.saveSettings(newSettings)
                       }
                     }
                   }}
@@ -327,14 +326,13 @@ export function Settings({ onClose }: SettingsProps) {
         </div>
       </div>
 
-      {showPasswordSetup && folderHandle && (
+      {showPasswordSetup && storage && (
         <PasswordSetup
-          folderHandle={folderHandle}
           targetMode={showPasswordSetup}
           onComplete={(password) => {
             setShowPasswordSetup(null)
             setUnlocked(password)
-            getSettings(folderHandle).then(setSettings)
+            storage.getSettings().then(setSettings)
           }}
           onCancel={() => setShowPasswordSetup(null)}
         />
@@ -344,8 +342,8 @@ export function Settings({ onClose }: SettingsProps) {
         <ApiKeyConfig
           onClose={() => {
             setShowApiConfig(false)
-            if (folderHandle) {
-              getSettings(folderHandle).then(setSettings)
+            if (storage) {
+              storage.getSettings().then(setSettings)
             }
           }}
         />

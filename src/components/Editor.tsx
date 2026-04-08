@@ -2,15 +2,11 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '../stores/appStore'
 import { useSecurityStore } from '../stores/securityStore'
 import {
-  getOrCreateEntry,
-  saveEntry,
-  saveEntryMetadata,
   countWords,
-  createNewSession,
+  getOrCreateTodayEntry,
   getTodaySessions,
-  loadSession,
-  getSettings,
-} from '../lib/filesystem'
+  entryId,
+} from '../lib/entry-utils'
 import { analyzeEntry } from '../lib/analysis'
 import { decrypt, deobfuscate } from '../lib/crypto'
 import type { EntryMetadata, DumpsterFireSettings } from '../types/filesystem'
@@ -29,10 +25,11 @@ interface EditorProps {
 }
 
 export function Editor({ onBackToDashboard }: EditorProps) {
-  const { folderHandle, wordGoal, theme, setTheme, setFolderHandle } = useAppStore()
+  const { storage, wordGoal, theme, setTheme, setStorage } = useAppStore()
   const { sessionPassword } = useSecurityStore()
   const [content, setContent] = useState('')
   const [metadata, setMetadata] = useState<EntryMetadata | null>(null)
+  const [currentEntryId, setCurrentEntryId] = useState<string | null>(null)
   const [todaySessions, setTodaySessions] = useState<EntryMetadata[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -60,29 +57,29 @@ export function Editor({ onBackToDashboard }: EditorProps) {
   const { activeTimeSeconds, wpm, formattedTime, recordActivity, reset: resetStats } = useWritingStats(wordCount)
 
   const refreshTodaySessions = useCallback(async () => {
-    if (!folderHandle) return
-    const sessions = await getTodaySessions(folderHandle)
+    if (!storage) return
+    const sessions = await getTodaySessions(storage)
     setTodaySessions(sessions)
-  }, [folderHandle])
+  }, [storage])
 
   const loadEditorSettings = useCallback(async () => {
-    if (!folderHandle) return
-    const s = await getSettings(folderHandle)
+    if (!storage) return
+    const s = await storage.getSettings()
     setSettings(s)
     setEditorSettings(s.editor)
-  }, [folderHandle])
+  }, [storage])
 
   useEffect(() => {
-    if (!folderHandle) return
+    if (!storage) return
 
     const loadEntry = async () => {
       try {
-        const { content: c, metadata: m } = await getOrCreateEntry(folderHandle)
+        const { id, content: c, meta: m } = await getOrCreateTodayEntry(storage)
         setContent(c)
         setMetadata(m)
+        setCurrentEntryId(id)
         setWordCount(countWords(c))
         lastSavedContentRef.current = c
-        // If entry already has analysis, set baseline for rekindle detection
         if (m.analysis) {
           setContentAtLastAnalysis(c)
         }
@@ -96,11 +93,11 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     }
 
     loadEntry()
-  }, [folderHandle, refreshTodaySessions, loadEditorSettings])
+  }, [storage, refreshTodaySessions, loadEditorSettings])
 
   const saveContent = useCallback(
     async (newContent: string) => {
-      if (!folderHandle || !metadata) return
+      if (!storage || !metadata || !currentEntryId) return
       if (newContent === lastSavedContentRef.current) {
         setIsDirty(false)
         return
@@ -117,10 +114,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
           writingTimeSeconds: activeTimeSeconds,
         }
 
-        const parts = metadata.date.split('-').map(Number)
-        const date = new Date(parts[0]!, parts[1]! - 1, parts[2]!)
-
-        await saveEntry(folderHandle, date, metadata.session, newContent, updatedMetadata)
+        await storage.saveEntry(currentEntryId, newContent, updatedMetadata)
         setMetadata(updatedMetadata)
         lastSavedContentRef.current = newContent
         setIsDirty(false)
@@ -131,7 +125,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
         setSaving(false)
       }
     },
-    [folderHandle, metadata, wordGoal, activeTimeSeconds]
+    [storage, metadata, currentEntryId, wordGoal, activeTimeSeconds]
   )
 
   const handleContentChange = useCallback(
@@ -169,12 +163,10 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     if (wordGoal > 0 && wordCount >= wordGoal && !hasShownSparksForGoal && !showWhatRemains) {
       setShowSparks(true)
       setHasShownSparksForGoal(true)
-      // Reset sparks after animation (extended to 5500ms)
       setTimeout(() => setShowSparks(false), 5500)
     }
   }, [wordCount, wordGoal, hasShownSparksForGoal, showWhatRemains])
 
-  // Reset sparks flag when switching sessions
   const resetGoalState = useCallback(() => {
     setHasShownSparksForGoal(false)
     setShowWhatRemains(false)
@@ -206,7 +198,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
   }, [])
 
   const runAnalysis = useCallback(async () => {
-    if (!settings?.ai.provider || content.length < 50 || !folderHandle || !metadata) return
+    if (!settings?.ai.provider || content.length < 50 || !storage || !metadata || !currentEntryId) return
     
     setIsAnalyzing(true)
     setContentAtLastAnalysis(content)
@@ -215,7 +207,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
       if (apiKey) {
         const analysis = await analyzeEntry(content, settings.ai.provider, apiKey)
         const updatedMetadata: EntryMetadata = { ...metadata, analysis }
-        await saveEntryMetadata(folderHandle, metadata.date, metadata.session, updatedMetadata)
+        await storage.saveEntryMetadata(currentEntryId, updatedMetadata)
         setMetadata(updatedMetadata)
       }
     } catch (err) {
@@ -223,21 +215,17 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     } finally {
       setIsAnalyzing(false)
     }
-  }, [settings, content, getApiKey, folderHandle, metadata])
+  }, [settings, content, getApiKey, storage, metadata, currentEntryId])
 
   const handleFireComplete = useCallback(async () => {
     setShowFireAnimation(false)
     setShowWhatRemains(true)
     
-    // Scroll to top so What Remains panel is visible
     window.scrollTo({ top: 0, behavior: 'smooth' })
     
-    // Start analysis if not already done
     if (!metadata?.analysis) {
       await runAnalysis()
     }
-    // Note: contentAtLastAnalysis is only set in runAnalysis() 
-    // so we can detect changes since last analysis ran
   }, [metadata, runAnalysis])
 
   const handleRekindle = useCallback(async () => {
@@ -245,7 +233,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
   }, [runAnalysis])
 
   const handleNewSession = async () => {
-    if (!folderHandle) return
+    if (!storage) return
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
@@ -253,12 +241,14 @@ export function Editor({ onBackToDashboard }: EditorProps) {
 
     setLoading(true)
     try {
-      const { content: c, metadata: m } = await createNewSession(folderHandle)
-      setContent(c)
-      setMetadata(m)
+      const dateStr = metadata?.date || new Date().toISOString().split('T')[0]!
+      const { id, meta } = await storage.createEntry(dateStr)
+      setContent('')
+      setMetadata(meta)
+      setCurrentEntryId(id)
       setWordCount(0)
-      lastSavedContentRef.current = c
-      setContentAtLastAnalysis('') // New session has no analysis
+      lastSavedContentRef.current = ''
+      setContentAtLastAnalysis('')
       await refreshTodaySessions()
       resetGoalState()
     } catch (err) {
@@ -269,7 +259,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
   }
 
   const handleSwitchSession = async (session: number) => {
-    if (!folderHandle || !metadata || session === metadata.session) return
+    if (!storage || !metadata || session === metadata.session) return
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
@@ -277,20 +267,22 @@ export function Editor({ onBackToDashboard }: EditorProps) {
 
     setLoading(true)
     try {
-      const parts = metadata.date.split('-').map(Number)
-      const date = new Date(parts[0]!, parts[1]! - 1, parts[2]!)
-      const { content: c, metadata: m } = await loadSession(folderHandle, date, session)
-      setContent(c)
-      setMetadata(m)
-      setWordCount(countWords(c))
-      lastSavedContentRef.current = c
-      if (m.analysis) {
-        setContentAtLastAnalysis(c)
-      } else {
-        setContentAtLastAnalysis('')
+      const id = entryId(metadata.date, session)
+      const loaded = await storage.loadEntry(id)
+      if (loaded) {
+        setContent(loaded.content)
+        setMetadata(loaded.meta)
+        setCurrentEntryId(id)
+        setWordCount(countWords(loaded.content))
+        lastSavedContentRef.current = loaded.content
+        if (loaded.meta.analysis) {
+          setContentAtLastAnalysis(loaded.content)
+        } else {
+          setContentAtLastAnalysis('')
+        }
+        resetStats()
+        resetGoalState()
       }
-      resetStats()
-      resetGoalState()
     } catch (err) {
       console.error('Failed to switch session:', err)
     } finally {
@@ -310,49 +302,47 @@ export function Editor({ onBackToDashboard }: EditorProps) {
       clearTimeout(saveTimeoutRef.current)
     }
     saveContent(content)
-    setFolderHandle(null)
+    setStorage(null)
   }
 
   const handleCalendarSelect = async (_date: Date, entries: EntryMetadata[]) => {
     setShowCalendar(false)
     
-    if (entries.length === 0) {
-      // No entries for this day - could create one or just close
-      return
-    }
+    if (entries.length === 0) return
     
-    // Save current content first
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
     }
     await saveContent(content)
     
-    // Load the first session from the selected date
     setLoading(true)
     try {
       const entry = entries[0]!
-      const parts = entry.date.split('-').map(Number)
-      const entryDate = new Date(parts[0]!, parts[1]! - 1, parts[2]!)
-      const { content: c, metadata: m } = await loadSession(folderHandle!, entryDate, entry.session)
-      setContent(c)
-      setMetadata(m)
-      setWordCount(countWords(c))
-      lastSavedContentRef.current = c
-      if (m.analysis) {
-        setContentAtLastAnalysis(c)
-      } else {
-        setContentAtLastAnalysis('')
+      const id = entryId(entry.date, entry.session)
+      const loaded = await storage!.loadEntry(id)
+      if (loaded) {
+        setContent(loaded.content)
+        setMetadata(loaded.meta)
+        setCurrentEntryId(id)
+        setWordCount(countWords(loaded.content))
+        lastSavedContentRef.current = loaded.content
+        if (loaded.meta.analysis) {
+          setContentAtLastAnalysis(loaded.content)
+        } else {
+          setContentAtLastAnalysis('')
+        }
+        
+        const today = new Date()
+        const entryParts = entry.date.split('-').map(Number)
+        const entryDate = new Date(entryParts[0]!, entryParts[1]! - 1, entryParts[2]!)
+        if (entryDate.toDateString() === today.toDateString()) {
+          await refreshTodaySessions()
+        } else {
+          setTodaySessions(entries)
+        }
+        
+        resetStats()
       }
-      
-      // Update today's sessions if we're viewing today
-      const today = new Date()
-      if (entryDate.toDateString() === today.toDateString()) {
-        await refreshTodaySessions()
-      } else {
-        setTodaySessions(entries)
-      }
-      
-      resetStats()
     } catch (err) {
       console.error('Failed to load entry from calendar:', err)
     } finally {
@@ -370,19 +360,21 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     
     setLoading(true)
     try {
-      const parts = entry.date.split('-').map(Number)
-      const entryDate = new Date(parts[0]!, parts[1]! - 1, parts[2]!)
-      const { content: c, metadata: m } = await loadSession(folderHandle!, entryDate, entry.session)
-      setContent(c)
-      setMetadata(m)
-      setWordCount(countWords(c))
-      lastSavedContentRef.current = c
-      if (m.analysis) {
-        setContentAtLastAnalysis(c)
-      } else {
-        setContentAtLastAnalysis('')
+      const id = entryId(entry.date, entry.session)
+      const loaded = await storage!.loadEntry(id)
+      if (loaded) {
+        setContent(loaded.content)
+        setMetadata(loaded.meta)
+        setCurrentEntryId(id)
+        setWordCount(countWords(loaded.content))
+        lastSavedContentRef.current = loaded.content
+        if (loaded.meta.analysis) {
+          setContentAtLastAnalysis(loaded.content)
+        } else {
+          setContentAtLastAnalysis('')
+        }
+        resetStats()
       }
-      resetStats()
     } catch (err) {
       console.error('Failed to load entry from browser:', err)
     } finally {
@@ -574,7 +566,6 @@ export function Editor({ onBackToDashboard }: EditorProps) {
             showWhatRemains ? 'w-1/2' : 'w-full'
           }`}
         >
-          {/* Mask overlay when What Remains is open */}
           {showWhatRemains && (
             <div 
               className="absolute inset-0 z-10 cursor-pointer transition-opacity duration-300"
@@ -605,7 +596,6 @@ export function Editor({ onBackToDashboard }: EditorProps) {
           </div>
         </div>
 
-        {/* What Remains panel */}
         {showWhatRemains && metadata && (
           <div 
             className="w-1/2 border-l animate-slide-in"
@@ -623,7 +613,6 @@ export function Editor({ onBackToDashboard }: EditorProps) {
         )}
       </main>
 
-      {/* Strike the Match button - fixed at bottom center when goal reached */}
       {goalReached && !showWhatRemains && (
         <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-20">
           <button
@@ -635,12 +624,11 @@ export function Editor({ onBackToDashboard }: EditorProps) {
               boxShadow: '0 0 30px rgba(255, 107, 53, 0.4)',
             }}
           >
-            🔥 Strike the match
+            Strike the match
           </button>
         </div>
       )}
 
-      {/* Animations */}
       <SparksAnimation trigger={showSparks} />
       <FireAnimation trigger={showFireAnimation} onComplete={handleFireComplete} />
 
