@@ -262,29 +262,71 @@ Cross-cutting effects beyond the direct file-level changes.
 - Create `src/lib/storage/types.ts` with `EntryStorage` interface:
   ```ts
   interface EntryStorage {
+    // Entry CRUD
     listEntries(): Promise<EntryMetadata[]>
     loadEntry(id: string): Promise<{ content: string; meta: EntryMetadata } | null>
+    loadEntryContent(id: string): Promise<string | null>
     saveEntry(id: string, content: string, meta: EntryMetadata): Promise<void>
-    createEntry(date: string): Promise<EntryMetadata>
+    saveEntryMetadata(id: string, meta: EntryMetadata): Promise<void>
+    createEntry(date: string): Promise<{ id: string; meta: EntryMetadata }>
     deleteEntry(id: string): Promise<void>
+
+    // Settings
     getSettings(): Promise<DumpsterFireSettings>
     saveSettings(s: DumpsterFireSettings): Promise<void>
+
+    // Stats
     getStats(): Promise<Stats | null>
     saveStats(s: Stats): Promise<void>
+
+    // Initialization (no-op for OPFS; creates folder structure for FSA)
+    initialize(): Promise<void>
   }
   ```
 - Entry IDs switch from `(date, session)` tuple to a single string: `YYYY-MM-DD-HHMMSS` (decision #4 from discussion). This is a breaking schema change — acceptable given no existing users.
-- Port current `lib/filesystem.ts` + `lib/entries.ts` logic into `src/lib/storage/fsa.ts` as `FsaStorage` (temporary; deleted in Phase 1).
+- Port current `lib/filesystem.ts` + `lib/entries.ts` + `lib/calendar.ts` (the `getEntriesForMonth` FSA function) logic into `src/lib/storage/fsa.ts` as `FsaStorage` (temporary; deleted in Phase 1).
 - Replace `folderHandle` in `appStore` with `storage: EntryStorage | null`.
-- Update all 13 touchpoints to consume `storage` instead of `folderHandle`.
+- Update all 14 touchpoints to consume `storage` instead of `folderHandle`. The confirmed list:
+  - `App.tsx` — reads settings, checks auth, passes handle to Dashboard/Editor
+  - `stores/appStore.ts` — holds `folderHandle`, swap to `storage: EntryStorage | null`
+  - `stores/securityStore.ts` — no FSA dependency, but coupled to unlock flow (keep for now, delete in Phase 2)
+  - `lib/filesystem.ts` — core FSA operations, replaced by `FsaStorage`
+  - `lib/entries.ts` — `getAllEntries` with preview loading + search, replaced by `FsaStorage` + pure utility functions
+  - `lib/calendar.ts` — `getEntriesForMonth()` uses FSA directly; refactor to filter from `listEntries()` in memory
+  - `components/Welcome.tsx` — folder picker + `initializeFolder()`
+  - `components/Editor.tsx` — heaviest consumer (load, save, create session, switch session, save metadata, get settings, get API key)
+  - `components/Dashboard.tsx` — calls `getAllEntries` from `filesystem.ts`
+  - `components/Calendar.tsx` — calls `getEntriesForMonth` from `calendar.ts`
+  - `components/EntryBrowser.tsx` — calls `getAllEntries` from `entries.ts`, `getEntryContent`, `saveEntryMetadata`
+  - `components/Settings.tsx` — reads/writes settings via FSA
+  - `components/PasswordSetup.tsx` — writes security settings via FSA
+  - `components/ApiKeyConfig.tsx` — reads/writes AI settings via FSA
+  - `vite-env.d.ts` — FSA type declarations (keep until Phase 1 deletes FSA)
 - Rewrite existing tests against the interface (they should mostly pass unchanged with a `MemoryStorage` test double — which is itself a useful new artifact).
+
+**Interface design notes (from codebase review 2026-04-08):**
+
+1. **`saveEntryMetadata()` is needed separately from `saveEntry()`.** The current code saves analysis results to metadata without rewriting the markdown content (`saveEntryMetadata` in `filesystem.ts`, used by `Editor.tsx` and `EntryBrowser.tsx`). The interface must support metadata-only saves.
+
+2. **`loadEntryContent()` is needed separately from `loadEntry()`.** `EntryBrowser.tsx` loads content for analysis without needing the full entry (via `getEntryContent` in `entries.ts`). Keeps the interface flexible.
+
+3. **`getAllEntries` exists in BOTH `filesystem.ts` AND `entries.ts` with different return types.** `filesystem.ts` returns `EntryMetadata[]`; `entries.ts` returns `EntryWithPreview[]` (adds a `preview` field by loading the first ~100 words of content). Resolution: the storage interface returns `EntryMetadata[]` only. Preview generation becomes a caller-side concern — `EntryBrowser` calls `loadEntryContent()` per entry to build previews (or we add a batch preview helper as a pure function). This keeps the storage layer clean and avoids coupling it to UI concerns.
+
+4. **`getEntriesForMonth()` in `calendar.ts` hits FSA directly** to walk a single month directory. With the move to an in-memory entry index (Phase 1), this becomes a pure filter over `listEntries()` results. In Phase 0, `FsaStorage` still does the directory walk internally, but callers use `listEntries()` + a pure `filterEntriesByMonth()` helper. The `getEntriesForMonth` FSA function is deleted.
+
+5. **`getTodaySessions()`, `loadSession()`, `createNewSession()`** in `filesystem.ts` are heavily used by `Editor.tsx` but are derivable from the core interface methods. They become thin helper functions that call `listEntries()` + filter, `loadEntry(id)`, and `createEntry(date)` respectively. They live outside the storage interface as pure utility functions.
+
+6. **Settings source of truth: dual-store situation.** Currently, `appStore.ts` persists `theme` and `wordGoal` to `localStorage` via Zustand's `persist` middleware, while `settings.json` in the FSA folder stores the full `DumpsterFireSettings` (including editor config, security, AI keys). These can drift. Resolution for Phase 0: keep the dual-store as-is (Zustand persist for quick theme/goal hydration, `EntryStorage.getSettings()` for the full settings object). Phase 1 OPFS migration is the right time to unify — `OpfsStorage.getSettings()` becomes the single source of truth, and `appStore` drops the `persist` middleware for settings that live in the storage layer. Document this as a known debt item exiting Phase 0.
+
+7. **`initialize()` method on the interface.** `initializeFolder()` in `filesystem.ts` creates the `entries/` directory and `settings.json` if missing. FSA needs this; OPFS will too (Phase 1). Make it an explicit interface method rather than hiding it in the constructor.
 
 **Test strategy:**
 - New `MemoryStorage` in-memory implementation for unit tests.
 - All existing 103 tests migrate to `MemoryStorage`; zero FSA in test code.
 - Integration smoke test: can still pick a folder, write, save, reload.
+- Shared `EntryStorage` contract test suite: a set of tests that run against any implementation (MemoryStorage, FsaStorage, later OpfsStorage) to verify behavioral parity.
 
-**Exit criteria:** green tests, manual smoke test passes, no component references `FileSystemDirectoryHandle` except the FSA implementation file.
+**Exit criteria:** green tests, manual smoke test passes, no component references `FileSystemDirectoryHandle` except the FSA implementation file and `vite-env.d.ts`.
 
 ---
 
@@ -555,23 +597,29 @@ Single bundled release. No incremental ships.
 
 ## What gets deleted
 
-- `src/lib/filesystem.ts`
-- `src/lib/crypto.ts` + test
-- `src/components/PasswordSetup.tsx`
-- `src/components/UnlockScreen.tsx`
-- `src/components/ApiKeyConfig.tsx` (merged into Settings with new provider abstraction)
-- FSA shims in `src/vite-env.d.ts`
-- Folder-picker UI in `Welcome.tsx`
-- `security` mode field and `securityStore`
+- `src/lib/filesystem.ts` (absorbed into `FsaStorage` in Phase 0, then deleted with FSA in Phase 1)
+- `src/lib/entries.ts` (FSA functions absorbed into `FsaStorage`; pure utility functions `getPreview`, `searchEntries`, `formatEntryDate` extracted to `src/lib/entry-utils.ts`)
+- `src/lib/calendar.ts` `getEntriesForMonth()` FSA function (replaced by in-memory filtering over `listEntries()`)
+- `src/lib/crypto.ts` + test (Phase 2)
+- `src/components/PasswordSetup.tsx` (Phase 2)
+- `src/components/UnlockScreen.tsx` (Phase 2)
+- `src/components/ApiKeyConfig.tsx` (merged into Settings with new provider abstraction, Phase 2)
+- FSA shims in `src/vite-env.d.ts` (Phase 1)
+- Folder-picker UI in `Welcome.tsx` (Phase 1)
+- `security` mode field and `securityStore` (Phase 2)
 
 ## What gets added
 
-- `src/lib/storage/types.ts`, `memory.ts`, `opfs.ts`
-- `src/lib/sync/git.ts`
-- `src/lib/ai/providers.ts` (thin Vercel AI SDK wrappers)
-- `git-proxy/` Cloudflare Worker
-- Onboarding wizard for GitSync
-- Sync status indicator component
+- `src/lib/storage/types.ts` — `EntryStorage` interface + shared types
+- `src/lib/storage/fsa.ts` — `FsaStorage` implementation (Phase 0, temporary until Phase 1)
+- `src/lib/storage/memory.ts` — `MemoryStorage` for unit tests
+- `src/lib/storage/opfs.ts` — `OpfsStorage` implementation (Phase 1)
+- `src/lib/entry-utils.ts` — pure utility functions extracted from `entries.ts` (`getPreview`, `searchEntries`, `formatEntryDate`) and session helpers (`getTodaySessions`, `loadSession`, `createNewSession` as thin wrappers over `EntryStorage`)
+- `src/lib/sync/git.ts` (Phase 3)
+- `src/lib/ai/providers.ts` — thin Vercel AI SDK wrappers (Phase 2)
+- `git-proxy/` Cloudflare Worker (Phase 3)
+- Onboarding wizard for GitSync (Phase 3)
+- Sync status indicator component (Phase 3)
 
 ## Sources & References
 
