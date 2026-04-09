@@ -557,8 +557,8 @@ Single bundled release. No incremental ships.
    - Deploy to `git-proxy.dumpsterfire.ink` via `wrangler deploy`.
    - Smoke test: `curl` a GitHub API call through the proxy, confirm response.
    - Smoke test: confirm non-GitHub URLs are rejected with 403.
-   - Monitor for 48h before merging the app bundle to main.
-3. **App bundle ships to `burn.dumpsterfire.ink`** after the Worker is green for 48h and the full bundle passes all tests (unit + E2E across Chrome, Safari desktop, Firefox; manual smoke on iOS Safari and Android Chrome).
+   - Smoke test passes → proceed immediately (no bake time needed with zero active users).
+3. **App bundle ships to `burn.dumpsterfire.ink`** after the Worker smoke test passes and the full bundle passes all tests (unit + E2E across Chrome, Safari desktop, Firefox; manual smoke on iOS Safari and Android Chrome).
 4. **GitSync UI is default-off** in Settings — power-user opt-in. The "GitSync (advanced)" tile on the welcome screen is the discoverable entry point.
 5. **No feature flags** in the app itself. Rollback = revert + redeploy.
 6. **CSP header tightening** lands as part of the bundle (the new `connect-src` list covers the proxy, GitHub API, Anthropic, and OpenAI in one shot).

@@ -59,7 +59,6 @@ All four phases of the cross-browser + GitSync migration plan (PLAN.md) are code
 ### Must-do
 - [ ] Deploy `git-proxy/` Worker to `git-proxy.dumpsterfire.ink` (manual `wrangler deploy`)
 - [ ] Smoke test Worker: curl GitHub API through proxy, verify 403 on non-GitHub URLs
-- [ ] Monitor Worker for 48h before shipping app bundle (per rollout plan)
 - [ ] Manual E2E test: write → push → clone on fresh browser → verify parity
 - [ ] Manual test on iOS Safari (OPFS + Add-to-Home-Screen prompt)
 - [ ] Manual test on Firefox (OPFS + `persist()` prompt behavior)
