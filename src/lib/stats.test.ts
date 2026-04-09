@@ -17,48 +17,50 @@ const createMockEntry = (date: string, wordCount = 100, session = 1): EntryMetad
   writingTimeSeconds: 1800,
 })
 
+// Use local-date math matching calculateStreak's internal logic
+function localDateStr(daysAgo = 0): string {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - daysAgo)
+  return d.toISOString().split('T')[0]!
+}
+
 describe('calculateStreak', () => {
   it('returns 0 for empty entries', () => {
     expect(calculateStreak([])).toBe(0)
   })
 
   it('returns 1 for single entry today', () => {
-    const today = new Date().toISOString().split('T')[0]!
-    const entries = [createMockEntry(today)]
+    const entries = [createMockEntry(localDateStr(0))]
     expect(calculateStreak(entries)).toBe(1)
   })
 
   it('returns 1 for single entry yesterday (streak continues today if written)', () => {
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]!
-    const entries = [createMockEntry(yesterday)]
-    // If only yesterday has entry, streak is 1 (yesterday's entry)
-    // but streak is "broken" today since no entry today yet
+    const entries = [createMockEntry(localDateStr(1))]
     expect(calculateStreak(entries)).toBe(1)
   })
 
   it('counts consecutive days correctly', () => {
-    const today = new Date()
     const entries = [
-      createMockEntry(today.toISOString().split('T')[0]!),
-      createMockEntry(new Date(today.getTime() - 86400000).toISOString().split('T')[0]!),
-      createMockEntry(new Date(today.getTime() - 86400000 * 2).toISOString().split('T')[0]!),
+      createMockEntry(localDateStr(0)),
+      createMockEntry(localDateStr(1)),
+      createMockEntry(localDateStr(2)),
     ]
     expect(calculateStreak(entries)).toBe(3)
   })
 
   it('breaks streak on gap', () => {
-    const today = new Date()
     const entries = [
-      createMockEntry(today.toISOString().split('T')[0]!),
+      createMockEntry(localDateStr(0)),
       // Skip yesterday
-      createMockEntry(new Date(today.getTime() - 86400000 * 2).toISOString().split('T')[0]!),
+      createMockEntry(localDateStr(2)),
     ]
     expect(calculateStreak(entries)).toBe(1) // Only today counts
   })
 
   it('handles multiple sessions per day as single day', () => {
-    const today = new Date().toISOString().split('T')[0]!
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]!
+    const today = localDateStr(0)
+    const yesterday = localDateStr(1)
     const entries = [
       createMockEntry(today, 100, 1),
       createMockEntry(today, 200, 2),
@@ -69,13 +71,10 @@ describe('calculateStreak', () => {
   })
 
   it('allows streak to continue if yesterday has entry but today does not yet', () => {
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0]!
-    const twoDaysAgo = new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0]!
     const entries = [
-      createMockEntry(yesterday),
-      createMockEntry(twoDaysAgo),
+      createMockEntry(localDateStr(1)),
+      createMockEntry(localDateStr(2)),
     ]
-    // Streak should be 2 - user can still write today to continue
     expect(calculateStreak(entries)).toBe(2)
   })
 })

@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from './stores/appStore'
+import { useSyncStore } from './stores/syncStore'
 import { OpfsStorage } from './lib/storage/opfs'
+import { loadSyncConfig } from './lib/sync/pat-store'
+import { GitSync } from './lib/sync/git'
+import { PROXY_URL } from './lib/sync/types'
 import type { DumpsterFireSettings } from './types/filesystem'
 import { Welcome } from './components/Welcome'
 import { Dashboard } from './components/Dashboard'
@@ -9,6 +13,7 @@ type AppView = 'dashboard' | 'editor'
 
 export default function App() {
   const { storage, theme, setStorage } = useAppStore()
+  const { setGitSync, setStatus, setPatExpiresAt } = useSyncStore()
   const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [view, setView] = useState<AppView>('dashboard')
@@ -30,6 +35,17 @@ export default function App() {
         const storedSettings = await opfs.getSettings()
         if (entries.length > 0 || storedSettings.version !== '1.0.0') {
           setStorage(opfs)
+
+          // Auto-reconnect GitSync if config exists
+          const syncConfig = await loadSyncConfig()
+          if (syncConfig) {
+            setPatExpiresAt(syncConfig.patExpiresAt)
+            const root = await navigator.storage.getDirectory()
+            const sync = new GitSync(root, { ...syncConfig, corsProxy: PROXY_URL }, setStatus)
+            setGitSync(sync)
+            // Pull latest on reconnect (fire and forget)
+            sync.pull().catch(() => {})
+          }
         }
       } catch {
         // OPFS not available or no data
@@ -39,7 +55,7 @@ export default function App() {
     }
 
     tryAutoConnect()
-  }, [storage, initialized, setStorage])
+  }, [storage, initialized, setStorage, setGitSync, setStatus, setPatExpiresAt])
 
   useEffect(() => {
     if (!storage) {

@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useAppStore, type Theme } from '../stores/appStore'
+import { useSyncStore } from '../stores/syncStore'
 import type { DumpsterFireSettings } from '../types/filesystem'
 import { ApiKeyConfig } from './ApiKeyConfig'
+import { GitSyncSetup } from './GitSyncSetup'
+import { loadSyncConfig, deleteSyncConfig, daysUntilExpiration } from '../lib/sync/pat-store'
+import { PROXY_URL } from '../lib/sync/types'
+import { GitSync } from '../lib/sync/git'
 
 interface SettingsProps {
   onClose: () => void
@@ -29,11 +34,24 @@ export function Settings({ onClose }: SettingsProps) {
   const [settings, setSettings] = useState<DumpsterFireSettings | null>(null)
   const [saving, setSaving] = useState(false)
   const [showApiConfig, setShowApiConfig] = useState(false)
+  const [showSyncSetup, setShowSyncSetup] = useState(false)
+  const [syncConnected, setSyncConnected] = useState(false)
+  const [syncExpiresAt, setSyncExpiresAt] = useState<string | null>(null)
+  const { gitSync, status, setGitSync, setStatus, setPatExpiresAt } = useSyncStore()
 
   useEffect(() => {
     if (!storage) return
     storage.getSettings().then(setSettings)
   }, [storage])
+
+  useEffect(() => {
+    loadSyncConfig().then((config) => {
+      if (config) {
+        setSyncConnected(true)
+        setSyncExpiresAt(config.patExpiresAt)
+      }
+    })
+  }, [])
 
   const handleSave = async () => {
     if (!storage || !settings) return
@@ -261,7 +279,87 @@ export function Settings({ onClose }: SettingsProps) {
             </button>
           </div>
 
-        
+          {/* GitHub Sync */}
+          <div className="pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
+            <label className="block text-sm font-medium mb-2">GitHub Sync</label>
+            {syncConnected ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs">
+                  <span style={{ color: status.state === 'synced' ? '#22c55e' : status.state === 'error' ? '#ef4444' : 'var(--color-text-muted)' }}>
+                    {status.state === 'synced' && '● Synced'}
+                    {status.state === 'syncing' && '◌ Syncing...'}
+                    {status.state === 'offline' && '◐ Offline'}
+                    {status.state === 'error' && '✕ Error'}
+                    {status.state === 'disconnected' && '○ Disconnected'}
+                  </span>
+                </div>
+                {syncExpiresAt && (() => {
+                  const days = daysUntilExpiration(syncExpiresAt)
+                  if (days === null) return null
+                  if (days <= 0) return (
+                    <p className="text-xs" style={{ color: '#ef4444' }}>
+                      Token expired. Paste a new one to resume sync.
+                    </p>
+                  )
+                  if (days <= 14) return (
+                    <p className="text-xs" style={{ color: days <= 3 ? '#ef4444' : '#f59e0b' }}>
+                      Token expires in {days} day{days !== 1 ? 's' : ''}. Rotate now to avoid sync interruption.
+                    </p>
+                  )
+                  return null
+                })()}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => gitSync?.push()}
+                    disabled={!gitSync}
+                    className="flex-1 py-2 text-xs rounded"
+                    style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', opacity: !gitSync ? 0.5 : 1 }}
+                  >
+                    Push now
+                  </button>
+                  <button
+                    onClick={() => gitSync?.pull()}
+                    disabled={!gitSync}
+                    className="flex-1 py-2 text-xs rounded"
+                    style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)', opacity: !gitSync ? 0.5 : 1 }}
+                  >
+                    Pull now
+                  </button>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (confirm('Disconnect GitHub Sync? Local writing will continue. You can reconnect anytime.')) {
+                      if (gitSync) gitSync.destroy()
+                      setGitSync(null)
+                      setStatus({ state: 'disconnected' })
+                      setPatExpiresAt(null)
+                      await deleteSyncConfig()
+                      setSyncConnected(false)
+                      setSyncExpiresAt(null)
+                    }
+                  }}
+                  className="w-full py-2 text-xs rounded"
+                  style={{ backgroundColor: 'var(--color-bg)', color: '#ef4444', border: '1px solid var(--color-border)' }}
+                >
+                  Disconnect & Revoke Token
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs mb-3" style={{ color: 'var(--color-text-muted)' }}>
+                  Back up your writing to a private GitHub repo. Write on multiple devices.
+                </p>
+                <button
+                  onClick={() => setShowSyncSetup(true)}
+                  className="w-full py-2 text-sm rounded"
+                  style={{ backgroundColor: 'var(--color-bg)', border: '1px solid var(--color-border)' }}
+                >
+                  Set Up GitHub Sync
+                </button>
+              </div>
+            )}
+          </div>
+
         </div>
 
         <div className="p-4 border-t flex gap-2 flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
@@ -291,6 +389,30 @@ export function Settings({ onClose }: SettingsProps) {
               storage.getSettings().then(setSettings)
             }
           }}
+        />
+      )}
+
+      {showSyncSetup && (
+        <GitSyncSetup
+          onComplete={async () => {
+            setShowSyncSetup(false)
+            const config = await loadSyncConfig()
+            if (config) {
+              setSyncConnected(true)
+              setSyncExpiresAt(config.patExpiresAt)
+              setPatExpiresAt(config.patExpiresAt)
+
+              const root = await navigator.storage.getDirectory()
+              const sync = new GitSync(root, { ...config, corsProxy: PROXY_URL }, setStatus)
+              try {
+                await sync.clone()
+              } catch {
+                await sync.init()
+              }
+              setGitSync(sync)
+            }
+          }}
+          onCancel={() => setShowSyncSetup(false)}
         />
       )}
     </div>

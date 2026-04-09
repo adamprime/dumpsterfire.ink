@@ -1,10 +1,17 @@
 import { useState } from 'react'
 import { useAppStore } from '../stores/appStore'
+import { useSyncStore } from '../stores/syncStore'
 import { OpfsStorage } from '../lib/storage/opfs'
+import { GitSync } from '../lib/sync/git'
+import { loadSyncConfig } from '../lib/sync/pat-store'
+import { PROXY_URL } from '../lib/sync/types'
+import { GitSyncSetup } from './GitSyncSetup'
 
 export function Welcome() {
   const { setStorage } = useAppStore()
+  const { setGitSync, setStatus, setPatExpiresAt } = useSyncStore()
   const [error, setError] = useState<string | null>(null)
+  const [showSyncSetup, setShowSyncSetup] = useState(false)
 
   const handleStart = async () => {
     try {
@@ -14,6 +21,39 @@ export function Welcome() {
     } catch (err) {
       console.error('Failed to initialize storage:', err)
       setError('Failed to initialize local storage. Please try again.')
+    }
+  }
+
+  const handleSyncSetupComplete = async () => {
+    setShowSyncSetup(false)
+    try {
+      const config = await loadSyncConfig()
+      if (!config) return
+
+      const storage = new OpfsStorage()
+      await storage.initialize()
+
+      const root = await navigator.storage.getDirectory()
+      const sync = new GitSync(root, { ...config, corsProxy: PROXY_URL }, setStatus)
+
+      try {
+        await sync.clone()
+      } catch {
+        // Empty repo -- initialize
+        await sync.init()
+      }
+
+      setGitSync(sync)
+      setPatExpiresAt(config.patExpiresAt)
+      setStorage(storage)
+    } catch (err) {
+      console.error('Failed to set up sync:', err)
+      setError('Sync setup failed. You can configure it later in Settings.')
+
+      // Fall back to local-only mode
+      const storage = new OpfsStorage()
+      await storage.initialize()
+      setStorage(storage)
     }
   }
 
@@ -30,33 +70,49 @@ export function Welcome() {
           Where your messy thoughts go to burn bright
         </p>
 
-        <div
-          className="rounded-lg p-8 mb-6"
-          style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-        >
-          <h2 className="text-xl font-semibold mb-4">Get Started</h2>
-          <p className="mb-6" style={{ color: 'var(--color-text-muted)' }}>
-            Your writing is stored locally in your browser. No cloud, no
-            servers, just you and your words.
-          </p>
-
-          <button
-            onClick={handleStart}
-            className="w-full py-3 px-6 rounded-lg font-medium transition-colors cursor-pointer"
-            style={{
-              backgroundColor: 'var(--color-accent)',
-              color: 'white',
-            }}
+        <div className="space-y-4 mb-6">
+          <div
+            className="rounded-lg p-6"
+            style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
           >
-            Start Writing
-          </button>
-
-          {error && (
-            <p className="text-sm mt-3" style={{ color: '#ef4444' }}>
-              {error}
+            <h2 className="text-lg font-semibold mb-2">Start Writing</h2>
+            <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
+              Your writing is stored locally in your browser. No cloud, no
+              servers, just you and your words.
             </p>
-          )}
+            <button
+              onClick={handleStart}
+              className="w-full py-3 px-6 rounded-lg font-medium transition-colors cursor-pointer"
+              style={{ backgroundColor: 'var(--color-accent)', color: 'white' }}
+            >
+              Start Writing
+            </button>
+          </div>
+
+          <div
+            className="rounded-lg p-6"
+            style={{ backgroundColor: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+          >
+            <h2 className="text-lg font-semibold mb-2">Sync to GitHub</h2>
+            <p className="text-sm mb-4" style={{ color: 'var(--color-text-muted)' }}>
+              Back up your writing to a private GitHub repo. Write on multiple
+              devices. Your files, your repo, forever.
+            </p>
+            <button
+              onClick={() => setShowSyncSetup(true)}
+              className="w-full py-3 px-6 rounded-lg font-medium transition-colors cursor-pointer"
+              style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text)', border: '1px solid var(--color-border)' }}
+            >
+              Set Up GitHub Sync
+            </button>
+          </div>
         </div>
+
+        {error && (
+          <p className="text-sm mb-4" style={{ color: '#ef4444' }}>
+            {error}
+          </p>
+        )}
 
         {isIosSafari && (
           <div
@@ -67,16 +123,22 @@ export function Welcome() {
             <p style={{ color: 'var(--color-text-muted)' }}>
               On iOS Safari, browser storage may be cleared after 7 days of
               inactivity. Add this app to your Home Screen for persistent
-              storage, or enable GitHub Sync in settings to back up your writing.
+              storage, or enable GitHub Sync to back up your writing.
             </p>
           </div>
         )}
 
         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          Your data never leaves your device. Everything is stored locally
-          in your browser's private storage.
+          Your data never leaves your device unless you enable GitHub Sync.
         </p>
       </div>
+
+      {showSyncSetup && (
+        <GitSyncSetup
+          onComplete={handleSyncSetupComplete}
+          onCancel={() => setShowSyncSetup(false)}
+        />
+      )}
     </div>
   )
 }

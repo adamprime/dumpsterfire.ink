@@ -15,7 +15,9 @@ import { SparksAnimation } from './SparksAnimation'
 import { FireAnimation } from './FireAnimation'
 import { WhatRemains } from './WhatRemains'
 import { SaveIndicator } from './SaveIndicator'
+import { SyncStatusIndicator } from './SyncStatusIndicator'
 import { useWritingStats } from '../hooks/useWritingStats'
+import { useSyncCommit } from '../hooks/useSyncCommit'
 
 interface EditorProps {
   onBackToDashboard?: () => void
@@ -51,6 +53,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
   const [lastSaveTime, setLastSaveTime] = useState<Date | null>(null)
   
   const { activeTimeSeconds, wpm, formattedTime, recordActivity, reset: resetStats } = useWritingStats(wordCount)
+  const { triggerCommit, recordSyncActivity } = useSyncCommit()
 
   const refreshTodaySessions = useCallback(async () => {
     if (!storage) return
@@ -130,6 +133,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
       setWordCount(countWords(newContent))
       setIsDirty(newContent !== lastSavedContentRef.current)
       recordActivity()
+      recordSyncActivity()
 
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current)
@@ -139,7 +143,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
         saveContent(newContent)
       }, 2000)
     },
-    [saveContent, recordActivity]
+    [saveContent, recordActivity, recordSyncActivity]
   )
 
   useEffect(() => {
@@ -159,9 +163,10 @@ export function Editor({ onBackToDashboard }: EditorProps) {
     if (wordGoal > 0 && wordCount >= wordGoal && !hasShownSparksForGoal && !showWhatRemains) {
       setShowSparks(true)
       setHasShownSparksForGoal(true)
+      triggerCommit(`goal: ${wordCount} words reached`)
       setTimeout(() => setShowSparks(false), 5500)
     }
-  }, [wordCount, wordGoal, hasShownSparksForGoal, showWhatRemains])
+  }, [wordCount, wordGoal, hasShownSparksForGoal, showWhatRemains, triggerCommit])
 
   const resetGoalState = useCallback(() => {
     setHasShownSparksForGoal(false)
@@ -449,6 +454,8 @@ export function Editor({ onBackToDashboard }: EditorProps) {
             onSave={handleManualSave}
           />
 
+          <SyncStatusIndicator />
+
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value as typeof theme)}
@@ -468,7 +475,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
           </select>
 
           <button
-            onClick={() => setShowCalendar(true)}
+            onClick={() => { triggerCommit('nav: calendar'); setShowCalendar(true) }}
             className="px-3 py-1 text-sm rounded transition-colors"
             style={{
               backgroundColor: 'var(--color-surface)',
@@ -480,7 +487,7 @@ export function Editor({ onBackToDashboard }: EditorProps) {
           </button>
 
           <button
-            onClick={() => setShowBrowser(true)}
+            onClick={() => { triggerCommit('nav: browser'); setShowBrowser(true) }}
             className="px-3 py-1 text-sm rounded transition-colors"
             style={{
               backgroundColor: 'var(--color-surface)',
