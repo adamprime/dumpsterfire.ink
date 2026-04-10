@@ -5,6 +5,7 @@ import { OpfsStorage } from '../lib/storage/opfs'
 import { GitSync } from '../lib/sync/git'
 import { loadSyncConfig } from '../lib/sync/pat-store'
 import { PROXY_URL } from '../lib/sync/types'
+import { createStatsRecomputer } from '../lib/sync/recompute-stats'
 import { GitSyncSetup } from './GitSyncSetup'
 
 export function Welcome() {
@@ -34,7 +35,7 @@ export function Welcome() {
       await storage.initialize()
 
       const root = await navigator.storage.getDirectory()
-      const sync = new GitSync(root, { ...config, corsProxy: PROXY_URL }, setStatus)
+      const sync = new GitSync(root, { ...config, corsProxy: PROXY_URL }, setStatus, createStatsRecomputer(storage))
 
       try {
         await sync.clone()

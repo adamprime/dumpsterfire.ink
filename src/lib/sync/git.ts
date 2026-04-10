@@ -29,15 +29,18 @@ export class GitSync {
   private retryTimer: ReturnType<typeof setTimeout> | null = null
   private retryCount = 0
   private onStatusChange: (status: SyncStatus) => void
+  private onPullComplete?: () => void | Promise<void>
 
   constructor(
     root: FileSystemDirectoryHandle,
     config: GitSyncConfig,
     onStatusChange: (status: SyncStatus) => void,
+    onPullComplete?: () => void | Promise<void>,
   ) {
     this.fs = createOpfsGitFs(root)
     this.config = config
     this.onStatusChange = onStatusChange
+    this.onPullComplete = onPullComplete
   }
 
   private get corsProxy(): string {
@@ -158,6 +161,7 @@ export class GitSync {
         author: this.author,
         onAuth: () => ({ username: this.config.pat }),
       })
+      if (this.onPullComplete) await this.onPullComplete()
       this.onStatusChange({ state: 'synced' })
     } catch (err) {
       this.onStatusChange({ state: 'error', message: `Pull failed: ${(err as Error).message}` })

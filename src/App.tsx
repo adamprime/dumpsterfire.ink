@@ -5,6 +5,7 @@ import { OpfsStorage } from './lib/storage/opfs'
 import { loadSyncConfig } from './lib/sync/pat-store'
 import { GitSync } from './lib/sync/git'
 import { PROXY_URL } from './lib/sync/types'
+import { createStatsRecomputer } from './lib/sync/recompute-stats'
 import type { DumpsterFireSettings } from './types/filesystem'
 import { Welcome } from './components/Welcome'
 import { Dashboard } from './components/Dashboard'
@@ -41,7 +42,7 @@ export default function App() {
           if (syncConfig) {
             setPatExpiresAt(syncConfig.patExpiresAt)
             const root = await navigator.storage.getDirectory()
-            const sync = new GitSync(root, { ...syncConfig, corsProxy: PROXY_URL }, setStatus)
+            const sync = new GitSync(root, { ...syncConfig, corsProxy: PROXY_URL }, setStatus, createStatsRecomputer(opfs))
             setGitSync(sync)
             // Pull latest on reconnect (fire and forget)
             sync.pull().catch(() => {})

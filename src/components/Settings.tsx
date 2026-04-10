@@ -7,6 +7,7 @@ import { GitSyncSetup } from './GitSyncSetup'
 import { loadSyncConfig, deleteSyncConfig, daysUntilExpiration } from '../lib/sync/pat-store'
 import { PROXY_URL } from '../lib/sync/types'
 import { GitSync } from '../lib/sync/git'
+import { createStatsRecomputer } from '../lib/sync/recompute-stats'
 
 interface SettingsProps {
   onClose: () => void
@@ -328,7 +329,24 @@ export function Settings({ onClose }: SettingsProps) {
                 </div>
                 <button
                   onClick={async () => {
-                    if (confirm('Disconnect GitHub Sync? Local writing will continue. You can reconnect anytime.')) {
+                    if (confirm('Disconnect GitHub Sync and revoke your token? Local writing will continue. You can reconnect anytime.')) {
+                      // Revoke token server-side via GitHub's credential revocation API
+                      const config = await loadSyncConfig()
+                      if (config?.pat) {
+                        try {
+                          await fetch(`${PROXY_URL}/api.github.com/credentials/revoke`, {
+                            method: 'POST',
+                            headers: {
+                              'Accept': 'application/vnd.github+json',
+                              'X-GitHub-Api-Version': '2026-03-10',
+                              'User-Agent': 'DumpsterFire/1.0',
+                            },
+                            body: JSON.stringify({ credentials: [config.pat] }),
+                          })
+                        } catch {
+                          // Best-effort revocation -- don't block disconnect on network failure
+                        }
+                      }
                       if (gitSync) gitSync.destroy()
                       setGitSync(null)
                       setStatus({ state: 'disconnected' })
@@ -403,7 +421,7 @@ export function Settings({ onClose }: SettingsProps) {
               setPatExpiresAt(config.patExpiresAt)
 
               const root = await navigator.storage.getDirectory()
-              const sync = new GitSync(root, { ...config, corsProxy: PROXY_URL }, setStatus)
+              const sync = new GitSync(root, { ...config, corsProxy: PROXY_URL }, setStatus, storage ? createStatsRecomputer(storage) : undefined)
               try {
                 await sync.clone()
               } catch {

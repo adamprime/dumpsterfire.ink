@@ -3,7 +3,7 @@
 **Last updated:** 2026-04-10
 **Branch:** `feat/storage-interface-refactor`
 **Tests:** 138 passing (15 test files)
-**Bundle:** 388 KB gzip
+**Bundle:** 305 KB gzip main + 82 KB gzip sync chunk (lazy-loaded)
 **Type errors:** 0
 
 ## Current State
@@ -66,11 +66,12 @@ All four phases of the cross-browser + GitSync migration plan (PLAN.md) are code
 - [ ] Merge feature branch to main, deploy to `burn.dumpsterfire.ink`
 
 ### Should-do (before or shortly after merge)
+- [x] Write `TESTING_GUIDE.md` with manual test plan for GitSync flows (2026-04-10)
+- [x] Confirm GitHub credential revocation API — `POST /credentials/revoke` (unauthenticated, via proxy). Wired into Settings disconnect flow (2026-04-10)
+- [x] Implement stats.json recompute-from-entries after every pull via `onPullComplete` callback (2026-04-10)
+- [x] Review bundle size — lazy-loaded isomorphic-git: main 305 KB + sync chunk 82 KB (2026-04-10)
 - [ ] Benchmark OPFS fs shim with 2000-commit test repo (PLAN.md verification item)
-- [ ] Confirm GitHub credential revocation API endpoint for fine-grained PATs
-- [ ] Write `TESTING_GUIDE.md` with manual test plan for GitSync flows
 - [ ] Personal data migration: one-time script to move author's FSA entries to OPFS
-- [ ] Review bundle size — 388 KB exceeds the 200 KB budget in PLAN.md (isomorphic-git is ~89 KB). Consider lazy-loading sync module.
 
 ### Nice-to-have / future
 - [ ] Code-split isomorphic-git behind dynamic import (would save ~89 KB for non-sync users)
