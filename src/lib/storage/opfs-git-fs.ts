@@ -5,6 +5,18 @@
  * No IndexedDB, no dual stores.
  */
 
+// isomorphic-git expects Node.js-style errors with string .code property.
+// OPFS throws DOMException with numeric .code, which crashes isomorphic-git's
+// error handling (e.g., (err.code || "").includes("ENOENT")).
+function toNodeError(err: unknown, fallbackCode = 'ENOENT'): Error {
+  const e = err instanceof Error ? err : new Error(String(err))
+  if (typeof (e as Error & { code?: string }).code === 'string') return e
+  const wrapped = new Error(e.message) as Error & { code: string }
+  wrapped.code = (e instanceof DOMException && e.name === 'NotFoundError') ? 'ENOENT' : fallbackCode
+  wrapped.stack = e.stack
+  return wrapped
+}
+
 interface StatResult {
   type: 'file' | 'dir'
   mode: number
@@ -72,38 +84,54 @@ export function createOpfsGitFs(root: FileSystemDirectoryHandle) {
   return {
     promises: {
       async readFile(filepath: string, opts?: { encoding?: string } | string): Promise<Uint8Array | string> {
-        const { parent, name } = await resolveParent(root, filepath)
-        const handle = await parent.getFileHandle(name)
-        const file = await handle.getFile()
-        const buffer = new Uint8Array(await file.arrayBuffer())
-        const encoding = typeof opts === 'string' ? opts : opts?.encoding
-        if (encoding === 'utf8' || encoding === 'utf-8') return decoder.decode(buffer)
-        return buffer
+        try {
+          const { parent, name } = await resolveParent(root, filepath)
+          const handle = await parent.getFileHandle(name)
+          const file = await handle.getFile()
+          const buffer = new Uint8Array(await file.arrayBuffer())
+          const encoding = typeof opts === 'string' ? opts : opts?.encoding
+          if (encoding === 'utf8' || encoding === 'utf-8') return decoder.decode(buffer)
+          return buffer
+        } catch (err) {
+          throw toNodeError(err)
+        }
       },
 
       async writeFile(filepath: string, data: Uint8Array | string, opts?: { mode?: number } | string): Promise<void> {
         void opts
-        const { parent, name } = await resolveParent(root, filepath, true)
-        const handle = await parent.getFileHandle(name, { create: true })
-        const writable = await handle.createWritable()
-        const bytes = typeof data === 'string' ? encoder.encode(data) : data
-        await writable.write(bytes)
-        await writable.close()
+        try {
+          const { parent, name } = await resolveParent(root, filepath, true)
+          const handle = await parent.getFileHandle(name, { create: true })
+          const writable = await handle.createWritable()
+          const bytes = typeof data === 'string' ? encoder.encode(data) : data
+          await writable.write(bytes)
+          await writable.close()
+        } catch (err) {
+          throw toNodeError(err, 'EIO')
+        }
       },
 
       async unlink(filepath: string): Promise<void> {
-        const { parent, name } = await resolveParent(root, filepath)
-        await parent.removeEntry(name)
+        try {
+          const { parent, name } = await resolveParent(root, filepath)
+          await parent.removeEntry(name)
+        } catch (err) {
+          throw toNodeError(err)
+        }
       },
 
       async readdir(filepath: string): Promise<string[]> {
-        const parts = splitPath(filepath)
-        const dir = await resolveDir(root, parts)
-        const entries: string[] = []
-        for await (const [name] of dir.entries()) {
-          entries.push(name)
+        try {
+          const parts = splitPath(filepath)
+          const dir = await resolveDir(root, parts)
+          const entries: string[] = []
+          for await (const [name] of dir.entries()) {
+            entries.push(name)
+          }
+          return entries
+        } catch (err) {
+          throw toNodeError(err)
         }
-        return entries
       },
 
       async mkdir(filepath: string, _opts?: { mode?: number }): Promise<void> {
@@ -112,8 +140,12 @@ export function createOpfsGitFs(root: FileSystemDirectoryHandle) {
       },
 
       async rmdir(filepath: string): Promise<void> {
-        const { parent, name } = await resolveParent(root, filepath)
-        await parent.removeEntry(name, { recursive: true })
+        try {
+          const { parent, name } = await resolveParent(root, filepath)
+          await parent.removeEntry(name, { recursive: true })
+        } catch (err) {
+          throw toNodeError(err)
+        }
       },
 
       async stat(filepath: string): Promise<StatResult> {
@@ -122,15 +154,25 @@ export function createOpfsGitFs(root: FileSystemDirectoryHandle) {
 
         const parentParts = parts.slice(0, -1)
         const name = parts[parts.length - 1]!
-        const parent = await resolveDir(root, parentParts)
+
+        let parent: FileSystemDirectoryHandle
+        try {
+          parent = await resolveDir(root, parentParts)
+        } catch (err) {
+          throw toNodeError(err)
+        }
 
         try {
           const handle = await parent.getFileHandle(name)
           const file = await handle.getFile()
           return makeStat('file', file.size)
         } catch {
-          await parent.getDirectoryHandle(name)
-          return makeStat('dir', 0)
+          try {
+            await parent.getDirectoryHandle(name)
+            return makeStat('dir', 0)
+          } catch (err) {
+            throw toNodeError(err)
+          }
         }
       },
 
