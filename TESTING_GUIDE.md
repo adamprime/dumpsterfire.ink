@@ -14,47 +14,47 @@ npm run dev   # http://localhost:5173
 
 Test in each browser. This is the core "does the app work" check.
 
-- [ ] **Chrome** — Open app, see Welcome screen with two tiles ("Start Writing" and "Sync to GitHub")
-- [ ] **Firefox** — Same Welcome screen renders
-- [ ] **Safari (macOS)** — Same Welcome screen renders
+- [ x] **Chrome** — Open app, see Welcome screen with two tiles ("Start Writing" and "Sync to GitHub")
+- [ x] **Firefox** — Same Welcome screen renders
+- [ x] **Safari (macOS)** — Same Welcome screen renders
 
 For each browser:
 
-- [ ] Click "Start Writing"
-- [ ] Editor loads, cursor is in the writing area
-- [ ] Type ~50 words, verify word count updates in header
-- [ ] Wait 3 seconds — SaveIndicator shows "Saved"
-- [ ] Refresh the page — app auto-reconnects, your entry is still there
-- [ ] Close and reopen the browser — entry persists (OPFS is durable)
+- [ x] Click "Start Writing"
+- [ x] Editor loads, cursor is in the writing area
+- [x ] Type ~50 words, verify word count updates in header
+- [x ] Wait 3 seconds — SaveIndicator shows "Saved"
+- [x ] Refresh the page — app auto-reconnects, your entry is still there
+- [ x] Close and reopen the browser — entry persists (OPFS is durable)
 
 ## 2. Entry Management
 
-- [ ] Write enough to create a full entry (any word count)
-- [ ] Open Calendar (calendar icon in header) — today is highlighted
-- [ ] Open Entry Browser (list icon in header) — your entry appears with preview
-- [ ] Search for a word you wrote — entry shows up in results
-- [ ] Create a new session (if the UI supports it) — verify session count increments
+- [ x] Write enough to create a full entry (any word count)
+- [ x] Open Calendar (calendar icon in header) — today is highlighted
+- [ x] Open Entry Browser (list icon in header) — your entry appears with preview
+- [ x] Search for a word you wrote — entry shows up in results
+- [ x] Create a new session (if the UI supports it) — verify session count increments
 
 ## 3. Goal + What Remains Flow
 
-- [ ] Set word goal to 50 (Settings > Daily Word Goal) so it's easy to hit
-- [ ] Write 50+ words
+- [ x] Set word goal to 50 (Settings > Daily Word Goal) so it's easy to hit
+- [ x] Write 50+ words
 - [ ] Sparks animation plays (embers rising, ~5 seconds)
-- [ ] "Strike the match" button appears at bottom center
+- [ x] "Strike the match" button appears at bottom center
 - [ ] Click it — fire animation plays (~2.5 seconds)
-- [ ] Split view opens: masked entry on left, What Remains panel on right
+- [ x] Split view opens: masked entry on left, What Remains panel on right
 - [ ] If API keys are configured: AI analysis loads (QuillLoader shows, then results)
-- [ ] Click the masked entry to return to full editor
+- [x ] Click the masked entry to return to full editor
 
 ## 4. Settings
 
-- [ ] Open Settings (gear icon)
-- [ ] Change theme — preview updates immediately
-- [ ] Change word goal — saves correctly
-- [ ] Change font — editor updates
-- [ ] "Configure API Keys" opens the API key modal
-- [ ] GitHub Sync section shows "Set Up GitHub Sync" button (if not connected)
-- [ ] Save and close — settings persist on refresh
+- [ x] Open Settings (gear icon)
+- [ x] Change theme — preview updates immediately
+- [ x] Change word goal — saves correctly
+- [ x] Change font — editor updates
+- [ x] "Configure API Keys" opens the API key modal
+- [ x] GitHub Sync section shows "Set Up GitHub Sync" button (if not connected)
+- [ x] Save and close — settings persist on refresh
 
 ## 5. iOS Safari (iPhone/iPad)
 

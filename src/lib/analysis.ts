@@ -21,13 +21,13 @@ GUIDELINES:
 
 export const AnalysisSchema = z.object({
   summary: z.string().describe('2-3 sentences warmly reflecting back what you shared, celebrating the act of writing itself'),
-  themes: z.array(z.string()).max(4).describe('Main themes from the writing'),
+  themes: z.array(z.string()).describe('Up to 4 main themes from the writing'),
   sentiment: z.object({
     overall: z.enum(['positive', 'negative', 'neutral', 'mixed']),
     score: z.number().min(0).max(1).describe('0=very negative, 1=very positive'),
   }),
   mindset: z.string().describe('A gentle, encouraging observation about where your head seems to be at'),
-  topWords: z.array(z.string()).max(5).describe('Five key words from the writing'),
+  topWords: z.array(z.string()).describe('Five key words from the writing'),
 })
 
 export type ModelChoice = 'default' | 'smarter' | 'cheapest'

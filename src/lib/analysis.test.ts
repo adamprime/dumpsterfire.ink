@@ -32,10 +32,9 @@ describe('AnalysisSchema', () => {
     ).toThrow()
   })
 
-  it('rejects more than 4 themes', () => {
-    expect(() =>
-      AnalysisSchema.parse({ ...validAnalysis, themes: ['a', 'b', 'c', 'd', 'e'] })
-    ).toThrow()
+  it('accepts any number of themes (limit enforced by prompt, not schema)', () => {
+    const result = AnalysisSchema.parse({ ...validAnalysis, themes: ['a', 'b', 'c', 'd', 'e'] })
+    expect(result.themes).toHaveLength(5)
   })
 })
 
