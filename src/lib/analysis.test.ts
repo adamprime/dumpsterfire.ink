@@ -26,10 +26,9 @@ describe('AnalysisSchema', () => {
     ).toThrow()
   })
 
-  it('rejects sentiment score out of range', () => {
-    expect(() =>
-      AnalysisSchema.parse({ ...validAnalysis, sentiment: { overall: 'positive', score: 1.5 } })
-    ).toThrow()
+  it('accepts any number for sentiment score (range enforced by prompt, not schema)', () => {
+    const result = AnalysisSchema.parse({ ...validAnalysis, sentiment: { overall: 'positive', score: 1.5 } })
+    expect(result.sentiment.score).toBe(1.5)
   })
 
   it('accepts any number of themes (limit enforced by prompt, not schema)', () => {

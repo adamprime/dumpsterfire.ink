@@ -24,7 +24,7 @@ export const AnalysisSchema = z.object({
   themes: z.array(z.string()).describe('Up to 4 main themes from the writing'),
   sentiment: z.object({
     overall: z.enum(['positive', 'negative', 'neutral', 'mixed']),
-    score: z.number().min(0).max(1).describe('0=very negative, 1=very positive'),
+    score: z.number().describe('0=very negative, 1=very positive, between 0 and 1'),
   }),
   mindset: z.string().describe('A gentle, encouraging observation about where your head seems to be at'),
   topWords: z.array(z.string()).describe('Five key words from the writing'),
