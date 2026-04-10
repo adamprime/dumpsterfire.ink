@@ -1,6 +1,6 @@
 # Dumpster Fire — Project Status
 
-**Last updated:** 2026-04-08
+**Last updated:** 2026-04-10
 **Branch:** `feat/storage-interface-refactor`
 **Tests:** 138 passing (15 test files)
 **Bundle:** 388 KB gzip
@@ -57,8 +57,8 @@ All four phases of the cross-browser + GitSync migration plan (PLAN.md) are code
 ## What's Left Before Merge/Deploy
 
 ### Must-do
-- [ ] Deploy `git-proxy/` Worker to `git-proxy.dumpsterfire.ink` (manual `wrangler deploy`)
-- [ ] Smoke test Worker: curl GitHub API through proxy, verify 403 on non-GitHub URLs
+- [x] Deploy `git-proxy/` Worker to `git-proxy.dumpsterfire.ink` (deployed 2026-04-10)
+- [x] Smoke test Worker: GitHub API → 200, non-GitHub URL → 403 (verified 2026-04-10)
 - [ ] Manual E2E test: write → push → clone on fresh browser → verify parity
 - [ ] Manual test on iOS Safari (OPFS + Add-to-Home-Screen prompt)
 - [ ] Manual test on Firefox (OPFS + `persist()` prompt behavior)
