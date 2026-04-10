@@ -1,8 +1,25 @@
-import git from 'isomorphic-git'
-import http from 'isomorphic-git/http/web'
 import { createOpfsGitFs } from '../storage/opfs-git-fs'
 import type { SyncStatus, GitSyncConfig } from './types'
 import { PROXY_URL } from './types'
+
+// Lazy-load isomorphic-git so it's code-split out of the main bundle.
+// Only users who enable GitSync pay the ~89 KB cost.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _git: any = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _http: any = null
+
+async function getGit() {
+  if (!_git) {
+    const mod = await import('isomorphic-git')
+    _git = mod.default ?? mod
+  }
+  if (!_http) {
+    const httpMod = await import('isomorphic-git/http/web')
+    _http = httpMod.default
+  }
+  return { git: _git as typeof import('isomorphic-git').default, http: _http }
+}
 
 export class GitSync {
   private fs: ReturnType<typeof createOpfsGitFs>
@@ -39,6 +56,7 @@ export class GitSync {
   async clone(): Promise<void> {
     this.onStatusChange({ state: 'syncing', operation: 'clone' })
     try {
+      const { git, http } = await getGit()
       await git.clone({
         fs: this.fs,
         http,
@@ -57,6 +75,7 @@ export class GitSync {
 
   async init(): Promise<void> {
     try {
+      const { git } = await getGit()
       await git.init({ fs: this.fs, dir: this.dir, defaultBranch: 'main' })
       await git.setConfig({ fs: this.fs, dir: this.dir, path: 'remote.origin.url', value: this.proxyUrl(this.config.repoUrl) })
     } catch (err) {
@@ -68,6 +87,7 @@ export class GitSync {
   async commit(message: string): Promise<void> {
     this.onStatusChange({ state: 'syncing', operation: 'commit' })
     try {
+      const { git } = await getGit()
       const status = await git.statusMatrix({ fs: this.fs, dir: this.dir })
       let hasChanges = false
 
@@ -103,6 +123,7 @@ export class GitSync {
   async push(): Promise<void> {
     this.onStatusChange({ state: 'syncing', operation: 'push' })
     try {
+      const { git, http } = await getGit()
       await git.push({
         fs: this.fs,
         http,
@@ -127,6 +148,7 @@ export class GitSync {
   async pull(): Promise<void> {
     this.onStatusChange({ state: 'syncing', operation: 'pull' })
     try {
+      const { git, http } = await getGit()
       await git.pull({
         fs: this.fs,
         http,
@@ -144,6 +166,7 @@ export class GitSync {
 
   async status(): Promise<SyncStatus> {
     try {
+      const { git } = await getGit()
       const status = await git.statusMatrix({ fs: this.fs, dir: this.dir })
       const dirty = status.some(([, head, workdir, stage]) => head !== workdir || head !== stage)
 
@@ -158,6 +181,7 @@ export class GitSync {
 
   private async handlePushConflict(): Promise<void> {
     try {
+      const { git, http } = await getGit()
       await git.fetch({
         fs: this.fs,
         http,
@@ -207,6 +231,7 @@ export class GitSync {
   }
 
   private async resolveConflictByRename(): Promise<void> {
+    const { git, http } = await getGit()
     const statusMatrix = await git.statusMatrix({ fs: this.fs, dir: this.dir })
     const suffix = this.config.deviceId
 
