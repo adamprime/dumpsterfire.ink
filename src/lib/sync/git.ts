@@ -67,7 +67,7 @@ export class GitSync {
         url: this.proxyUrl(this.config.repoUrl),
         depth: 50,
         singleBranch: true,
-        onAuth: () => ({ username: this.config.pat }),
+        headers: { 'Authorization': `Basic ${btoa(this.config.pat + ':')}` },
       })
       this.onStatusChange({ state: 'synced' })
     } catch (err) {
@@ -133,7 +133,7 @@ export class GitSync {
         dir: this.dir,
         remote: 'origin',
         ref: 'main',
-        onAuth: () => ({ username: this.config.pat }),
+        headers: { 'Authorization': `Basic ${btoa(this.config.pat + ':')}` },
       })
       this.retryCount = 0
       this.onStatusChange({ state: 'synced' })
@@ -159,7 +159,7 @@ export class GitSync {
         ref: 'main',
         singleBranch: true,
         author: this.author,
-        onAuth: () => ({ username: this.config.pat }),
+        headers: { 'Authorization': `Basic ${btoa(this.config.pat + ':')}` },
       })
       if (this.onPullComplete) await this.onPullComplete()
       this.onStatusChange({ state: 'synced' })
@@ -192,7 +192,7 @@ export class GitSync {
         dir: this.dir,
         ref: 'main',
         singleBranch: true,
-        onAuth: () => ({ username: this.config.pat }),
+        headers: { 'Authorization': `Basic ${btoa(this.config.pat + ':')}` },
       })
 
       const localRef = await git.resolveRef({ fs: this.fs, dir: this.dir, ref: 'main' })
@@ -220,7 +220,7 @@ export class GitSync {
           ref: 'main',
           singleBranch: true,
           author: this.author,
-          onAuth: () => ({ username: this.config.pat }),
+          headers: { 'Authorization': `Basic ${btoa(this.config.pat + ':')}` },
         })
         // Re-push our local changes
         await this.push()

@@ -11,7 +11,8 @@ function corsHeaders(origin: string): Record<string, string> {
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, User-Agent',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, User-Agent, Accept, X-GitHub-Api-Version, x-api-key, anthropic-version, anthropic-dangerous-direct-browser-access',
+    'Access-Control-Expose-Headers': 'WWW-Authenticate',
     'Access-Control-Max-Age': '86400',
   }
 }
