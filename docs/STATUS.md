@@ -1,6 +1,6 @@
 # Dumpster Fire — Project Status
 
-**Last updated:** 2026-04-10
+**Last updated:** 2026-04-14
 **Branch:** `feat/storage-interface-refactor`
 **Tests:** 138 passing (15 test files)
 **Bundle:** 305 KB gzip main + 82 KB gzip sync chunk (lazy-loaded)
@@ -10,14 +10,26 @@
 
 All four phases of the cross-browser + GitSync migration plan (PLAN.md) are code-complete on the feature branch. The branch has NOT been merged to main or deployed.
 
+Manual testing is in progress. Basic OPFS flow, animations, and AI analysis work in Chrome. **GitSync has NOT been fully tested yet** -- the CORS proxy and OPFS fs shim had bugs that were fixed, but the full connect-write-push-pull flow still needs end-to-end verification.
+
 ### Commits on this branch (oldest → newest)
 
+**Core phases:**
 1. `c7c63b9` — Add cross-browser + GitSync migration plan
 2. `7b225a5` — Refine Phase 0 interface design after codebase review
 3. `22a786a` — **Phase 0:** Decouple app from FSA behind `EntryStorage` interface
 4. `a563c8f` — **Phase 1:** OPFS backend + HHMMSS entry IDs, delete FSA
 5. `6ff4f9a` — **Phase 2:** Vercel AI SDK migration + prune encrypted mode
 6. `4b751e4` — **Phase 3:** GitSync with isomorphic-git, CORS proxy, full UI
+
+**Post-testing fixes (2026-04-10):**
+7. `5c8fcee` — CSP headers + lazy-load isomorphic-git (305 KB main, 82 KB sync chunk)
+8. `8a3d51b` — Stats recompute after pull, PAT revocation API, TESTING_GUIDE.md
+9. `96c3b78` — Fix CSP: allow `blob:` in `worker-src` for canvas-confetti animations
+10. `04950e2` — Fix Zod: remove `maxItems` (unsupported by Anthropic API)
+11. `c00efeb` — Fix Zod: remove `min`/`max` on numbers (unsupported by Anthropic API)
+12. `7d1635b` — Fix OPFS fs shim: wrap DOMException with Node.js-style string `.code`
+13. `b13001e` — Fix CORS proxy: allow GitHub headers + use Basic auth instead of onAuth callback
 
 ### What shipped per phase
 
@@ -59,10 +71,10 @@ All four phases of the cross-browser + GitSync migration plan (PLAN.md) are code
 ### Must-do
 - [x] Deploy `git-proxy/` Worker to `git-proxy.dumpsterfire.ink` (deployed 2026-04-10)
 - [x] Smoke test Worker: GitHub API → 200, non-GitHub URL → 403 (verified 2026-04-10)
-- [ ] Manual E2E test: write → push → clone on fresh browser → verify parity
+- [x] Tighten CSP headers: `connect-src` for proxy, GitHub API, Anthropic, OpenAI (2026-04-10)
+- [ ] **Manual E2E test: GitSync connect → write → push → clone on fresh browser → verify parity** (next step -- proxy + fs shim bugs fixed, needs re-test)
 - [ ] Manual test on iOS Safari (OPFS + Add-to-Home-Screen prompt)
 - [ ] Manual test on Firefox (OPFS + `persist()` prompt behavior)
-- [ ] Tighten CSP headers: `connect-src` for proxy, GitHub API, Anthropic, OpenAI
 - [ ] Merge feature branch to main, deploy to `burn.dumpsterfire.ink`
 
 ### Should-do (before or shortly after merge)
@@ -74,10 +86,33 @@ All four phases of the cross-browser + GitSync migration plan (PLAN.md) are code
 - [ ] Personal data migration: one-time script to move author's FSA entries to OPFS
 
 ### Nice-to-have / future
-- [ ] Code-split isomorphic-git behind dynamic import (would save ~89 KB for non-sync users)
+- [x] Code-split isomorphic-git behind dynamic import (done 2026-04-10, saves ~83 KB)
 - [ ] "Load full history" button in Settings (currently shallow clone depth:50)
 - [ ] WebAuthn PRF (deferred to late 2026 per plan)
-- [ ] `stats.json` recompute-from-entries after every pull (documented in plan, not yet implemented)
+
+## Bugs Found & Fixed During Manual Testing (2026-04-10)
+
+| Bug | Root Cause | Fix |
+|-----|-----------|-----|
+| No sparks/fire animations | CSP `worker-src 'self'` blocked canvas-confetti's blob Worker | Added `blob:` to `worker-src` |
+| AI analysis 400 "maxItems not supported" | Anthropic API rejects `maxItems` in JSON Schema | Removed `.max()` from Zod arrays, moved to `.describe()` |
+| AI analysis 400 "minimum/maximum not supported" | Anthropic API rejects `minimum`/`maximum` on numbers | Removed `.min().max()` from Zod number, moved to `.describe()` |
+| GitSync init crash: `(err.code \|\| "").includes is not a function` | OPFS DOMException has numeric `.code`, isomorphic-git expects string | Wrapped all fs shim errors with Node.js-style string `.code` |
+| GitSync CORS error on revocation API | Proxy `Access-Control-Allow-Headers` missing `X-GitHub-Api-Version` | Added all needed headers to proxy allowlist |
+| GitSync clone 401 Unauthorized | `onAuth` callback relies on 401 challenge/retry that breaks through proxy | Switched to upfront `Authorization: Basic` headers |
+| Tab switching drops app state (dev only) | Vite HMR reloads modules on blur, resetting non-persisted Zustand state | Not fixed -- dev-only issue, won't affect production build |
+
+## Resume Checklist (Next Session)
+
+1. Start dev server: `npm run dev`
+2. **Test GitSync end-to-end** (the #1 priority):
+   - Open Settings > GitHub Sync > Set Up GitHub Sync
+   - Create a test repo + fine-grained PAT (see TESTING_GUIDE.md section 7)
+   - Connect, write an entry, trigger sync (blur window or open calendar)
+   - Check GitHub repo for commits
+   - If it works: test pull from incognito/second browser
+3. If GitSync works: test Firefox + Safari basic OPFS flow
+4. Merge to main, deploy
 
 ## Key Architecture Decisions
 

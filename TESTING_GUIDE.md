@@ -2,6 +2,20 @@
 
 Run these tests in a browser before merging `feat/storage-interface-refactor` to main.
 
+## Test Progress (as of 2026-04-14)
+
+| Area | Status | Notes |
+|------|--------|-------|
+| Basic OPFS (Chrome) | PASS | Write, save, refresh, persist all work |
+| Goal + Sparks + Fire | PASS | Fixed CSP blob: worker-src issue |
+| AI Analysis (Anthropic) | PASS | Fixed Zod schema constraints (maxItems, min/max unsupported by Anthropic) |
+| Settings | PASS | Theme, goal, font, API keys all persist |
+| **GitSync** | **NOT TESTED** | Proxy + fs shim bugs fixed but full E2E not yet verified |
+| iOS Safari | NOT TESTED | Couldn't access dev server from phone (LAN IP didn't resolve) |
+| Firefox | NOT TESTED | |
+| CSP | PARTIAL | No violations for basic flow + AI; GitSync untested |
+| PWA / Offline | NOT TESTED | |
+
 ## Prerequisites
 
 ```bash
